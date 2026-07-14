@@ -272,7 +272,7 @@ async function sendMonthlyReport(bot, ownerId) {
         inline_keyboard: [
           [
             { text: "📊 Atur Budget Baru", callback_data: "action_budget_set_menu" },
-            { text: "📥 Download Excel", url: `${getSafeDashboardUrl() === "https://t.me/calvin_dompet_bot" ? "https://finance-kamu.vercel.app" : getSafeDashboardUrl()}/api/export` }
+            { text: "📥 Download Excel", url: `${getSafeDashboardUrl().includes("t.me") ? "https://finance-kamu.vercel.app" : getSafeDashboardUrl()}/api/export` }
           ],
           [
             { text: "🏠 Menu Utama", callback_data: "action_menu" }
