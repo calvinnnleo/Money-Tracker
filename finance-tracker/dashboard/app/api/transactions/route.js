@@ -1,5 +1,7 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
-import { fetchTransactions, fetchBudgets } from "../../../lib/sheets";
+import { getDbTransactions, getDbBudgets, addDbTransaction, hasSupabaseConfig } from "../../../lib/supabase";
 
 // Realistic dummy data for demo/development when credentials are not configured yet
 const DUMMY_DATA = {
@@ -55,29 +57,42 @@ const DUMMY_DATA = {
 };
 
 export async function GET() {
-  // === MODE FRONTEND DEV ===
-  // Langsung return dummy data tanpa coba Google Sheets.
-  // Uncomment blok di bawah nanti kalau sudah siap konek ke Google Sheets.
-  return NextResponse.json(DUMMY_DATA);
-
-  /*
-  // === MODE PRODUCTION (Uncomment kalau sudah setup Google Sheets) ===
-  const hasSheetConfig = process.env.GOOGLE_SHEET_ID && process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64;
-
-  if (!hasSheetConfig) {
-    console.log("ℹ️ Kredensial Google Sheets tidak ditemukan. Menampilkan data demo/dummy.");
+  if (!hasSupabaseConfig()) {
+    console.log("ℹ️ Kredensial Supabase tidak ditemukan. Menampilkan data demo/dummy.");
     return NextResponse.json(DUMMY_DATA);
   }
 
   try {
     const [transactions, budgets] = await Promise.all([
-      fetchTransactions(),
-      fetchBudgets(),
+      getDbTransactions(),
+      getDbBudgets(),
     ]);
     return NextResponse.json({ transactions, budgets });
   } catch (err) {
-    console.warn("⚠️ Gagal mengambil data dari Google Sheets API:", err.message);
+    console.warn("⚠️ Gagal mengambil data dari Supabase API:", err.message);
     return NextResponse.json(DUMMY_DATA);
   }
-  */
 }
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { date, type, category, amount, note } = body;
+
+    if (!date || !type || !category || !amount) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (hasSupabaseConfig()) {
+      await addDbTransaction({ date, type, category, amount, note });
+      return NextResponse.json({ success: true });
+    } else {
+      console.log("ℹ️ Kredensial Supabase tidak ditemukan. Menjalankan simulasi POST.");
+      return NextResponse.json({ success: true, offline: true });
+    }
+  } catch (err) {
+    console.error("❌ Gagal menyimpan transaksi:", err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+

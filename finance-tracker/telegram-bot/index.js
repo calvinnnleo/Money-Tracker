@@ -2,7 +2,6 @@ import TelegramBot from "node-telegram-bot-api";
 import dotenv from "dotenv";
 import { parseMessage, parseNumberAndNote } from "./parser.js";
 import {
-  ensureSheetStructure,
   addTransaction,
   getAllTransactions,
   getBudgets,
@@ -10,7 +9,7 @@ import {
   deleteLastTransaction,
   setBudget,
   getBudgetStatus,
-} from "./sheets.js";
+} from "./db.js";
 import { getSession, setSession, clearSession } from "./session.js";
 import { checkBudgetAlert } from "./budget-alert.js";
 import { startScheduler, getSettings, saveSettings } from "./scheduler.js";
@@ -28,11 +27,10 @@ if (!TOKEN) {
 const bot = new TelegramBot(TOKEN, { polling: true });
 
 try {
-  await ensureSheetStructure();
-  console.log("Bot jalan. Struktur Google Sheet sudah siap.");
+  console.log("Bot jalan. Terhubung dengan database Supabase.");
   startScheduler(bot, OWNER_ID);
 } catch (err) {
-  console.error("❌ Gagal memulai bot / sheets client:", err.message);
+  console.error("❌ Gagal memulai bot:", err.message);
 }
 
 function isOwner(msg) {
@@ -41,6 +39,14 @@ function isOwner(msg) {
 
 function formatRupiah(n) {
   return "Rp" + Math.round(n).toLocaleString("id-ID");
+}
+
+function getSafeDashboardUrl() {
+  const url = process.env.DASHBOARD_URL || "";
+  if (!url || url.includes("localhost") || url.includes("127.0.0.1")) {
+    return "https://t.me/calvin_dompet_bot"; // Fallback to bot's telegram link if localhost
+  }
+  return url;
 }
 
 // Keyboard Menu Definitions
@@ -64,10 +70,27 @@ const MAIN_MENU = {
         { text: "❓ Bantuan", callback_data: "action_help" },
       ],
       [
-        { text: "📈 Buka Dashboard", url: process.env.DASHBOARD_URL || "https://finance-kamu.vercel.app" },
+        { text: "📈 Buka Dashboard", url: getSafeDashboardUrl() },
       ],
     ],
   },
+};
+
+const REPLY_KEYBOARD = {
+  reply_markup: {
+    keyboard: [
+      [
+        { text: "🎛️ Menu Utama" },
+        { text: "📊 Ringkasan" },
+      ],
+      [
+        { text: "💰 Cek Budget" },
+        { text: "📋 Riwayat" },
+      ]
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: false
+  }
 };
 
 const CATEGORY_MENU_EXPENSE = {
@@ -221,23 +244,43 @@ const DAYS_MENU = (settings) => {
 bot.onText(/\/start/, (msg) => {
   if (!isOwner(msg)) return;
   clearSession(msg.from.id);
+  
+  const mergedMarkup = {
+    reply_markup: {
+      inline_keyboard: MAIN_MENU.reply_markup.inline_keyboard,
+      keyboard: REPLY_KEYBOARD.reply_markup.keyboard,
+      resize_keyboard: true,
+      one_time_keyboard: false
+    }
+  };
+
   bot.sendMessage(
     msg.chat.id,
     `Halo *${msg.from.first_name || "Owner"}*! 👋\n\n` +
-    `Aku bot pencatat keuangan pribadimu yang terkoneksi langsung dengan Google Sheets & Dashboard.\n\n` +
+    `Aku bot pencatat keuangan pribadimu yang terkoneksi langsung dengan database & Dashboard.\n\n` +
     `Kamu bisa langsung mencatat pengeluaran secara cepat:\n` +
     `• \`kopi 25rb\`\n` +
     `• \`beli sepatu 350k\`\n` +
     `• \`masuk 5jt gaji bulanan\`\n\n` +
-    `Atau gunakan tombol menu interaktif di bawah ini untuk bantuan navigasi:`,
-    { parse_mode: "Markdown", ...MAIN_MENU }
+    `Gunakan keyboard menu cepat di bawah ini untuk navigasi cepat tanpa mengetik!`,
+    { parse_mode: "Markdown", ...mergedMarkup }
   );
 });
 
 bot.onText(/\/menu/, (msg) => {
   if (!isOwner(msg)) return;
   clearSession(msg.from.id);
-  bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
+
+  const mergedMarkup = {
+    reply_markup: {
+      inline_keyboard: MAIN_MENU.reply_markup.inline_keyboard,
+      keyboard: REPLY_KEYBOARD.reply_markup.keyboard,
+      resize_keyboard: true,
+      one_time_keyboard: false
+    }
+  };
+
+  bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...mergedMarkup });
 });
 
 bot.onText(/\/help/, (msg) => {
@@ -643,11 +686,106 @@ bot.on("callback_query", async (callbackQuery) => {
 // Message listener (Handles chat inputs)
 bot.on("message", async (msg) => {
   if (!isOwner(msg)) return;
-  if (!msg.text || msg.text.startsWith("/")) return;
-
+  
   const userId = msg.from.id;
   const session = getSession(userId);
-  const text = msg.text.trim();
+  const text = msg.text ? msg.text.trim() : "";
+
+  if (text.startsWith("/")) return;
+
+  // Intercept Reply Keyboard Button clicks
+  if (text === "🎛️ Menu Utama") {
+    clearSession(userId);
+    const mergedMarkup = {
+      reply_markup: {
+        inline_keyboard: MAIN_MENU.reply_markup.inline_keyboard,
+        keyboard: REPLY_KEYBOARD.reply_markup.keyboard,
+        resize_keyboard: true,
+        one_time_keyboard: false
+      }
+    };
+    bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...mergedMarkup });
+    return;
+  }
+
+  if (text === "📊 Ringkasan") {
+    const rows = await getAllTransactions();
+    const thisMonth = new Date().toISOString().slice(0, 7);
+
+    let income = 0;
+    let expense = 0;
+    const byCategory = {};
+
+    for (const [date, type, category, amount] of rows) {
+      if (!date || !date.startsWith(thisMonth)) continue;
+      const amt = Number(amount) || 0;
+      if (type === "Income") income += amt;
+      else {
+        expense += amt;
+        byCategory[category] = (byCategory[category] || 0) + amt;
+      }
+    }
+
+    const catLines = Object.entries(byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .map(([c, v]) => `  - ${c}: *${formatRupiah(v)}*`)
+      .join("\n");
+
+    const responseMsg = [
+      `📊 *Ringkasan Bulan Ini (${thisMonth})*\n`,
+      `• Pemasukan: *${formatRupiah(income)}*`,
+      `• Pengeluaran: *${formatRupiah(expense)}*`,
+      `• Selisih Saldo: *${formatRupiah(income - expense)}*\n`,
+      `📈 *Rincian per Kategori:*`,
+      catLines || "  _(belum ada pengeluaran)_"
+    ].join("\n");
+
+    bot.sendMessage(msg.chat.id, responseMsg, { parse_mode: "Markdown", ...REPLY_KEYBOARD });
+    return;
+  }
+
+  if (text === "💰 Cek Budget") {
+    const status = await getBudgetStatus();
+    
+    const lines = status.status.map((b) => {
+      const icon = b.percentage >= 100 ? "🚨" : b.percentage >= 80 ? "⚠️" : "✅";
+      const limitStr = b.budget ? `/${formatRupiah(b.budget)}` : "";
+      
+      const filled = Math.min(Math.round(b.percentage / 10), 10);
+      const empty = 10 - filled;
+      const bar = "█".repeat(filled) + "░".repeat(empty);
+      
+      return `*${b.category}*\n\`${bar}\` ${formatRupiah(b.spent)}${limitStr} (${Math.round(b.percentage)}%)`;
+    }).join("\n\n");
+
+    const responseMsg = [
+      `🎯 *Pemantauan Budget (${status.thisMonth})*\n`,
+      lines || "_(Belum ada budget terkonfigurasi)_",
+      `\n💰 Total Pengeluaran: *${formatRupiah(status.totalSpent)}*`
+    ].join("\n");
+
+    bot.sendMessage(msg.chat.id, responseMsg, { parse_mode: "Markdown", ...REPLY_KEYBOARD });
+    return;
+  }
+
+  if (text === "📋 Riwayat") {
+    const txs = await getAllTransactions();
+    const recent = txs.slice(-10).reverse(); // Last 10
+
+    const lines = recent.map((t, idx) => {
+      const typeSign = t[1] === "Expense" ? "-" : "+";
+      const amountFormatted = formatRupiah(Number(t[3]) || 0);
+      return `${idx + 1}. *${t[2]}* | ${t[4] || "-"} | \`${typeSign}${amountFormatted}\` | _${t[0]}_`;
+    }).join("\n");
+
+    const responseMsg = [
+      `📋 *10 Transaksi Terakhir:*\n`,
+      lines || "_(belum ada riwayat transaksi)_"
+    ].join("\n");
+
+    bot.sendMessage(msg.chat.id, responseMsg, { parse_mode: "Markdown", ...REPLY_KEYBOARD });
+    return;
+  }
 
   // 1. Session flow: awaiting amount for custom category setting
   if (session.mode === "awaiting_custom_expense" || session.mode === "awaiting_custom_income") {
@@ -739,7 +877,7 @@ bot.on("message", async (msg) => {
       `• \`kopi 25rb\` (pengeluaran)\n` +
       `• \`masuk 5jt bonus\` (pemasukan)\n\n` +
       `Atau ketik /menu untuk mencatat lewat tombol navigasi.`,
-      { parse_mode: "Markdown" }
+      { parse_mode: "Markdown", ...REPLY_KEYBOARD }
     );
     return;
   }
@@ -754,7 +892,7 @@ bot.on("message", async (msg) => {
       `• Nominal: *${formatRupiah(parsed.amount)}*\n` +
       `• Catatan: _${parsed.note}_\n\n` +
       `💡 _Kategori ditebak otomatis via keyword/AI._`,
-      { parse_mode: "Markdown" }
+      { parse_mode: "Markdown", ...REPLY_KEYBOARD }
     );
 
     if (parsed.type === "Expense") {

@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 
 /* iOS-style base styles */
 body {
@@ -11,13 +11,18 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
-  padding-bottom: 30px; /* Safe padding at bottom */
+  padding-bottom: 30px;
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-/* Safe area for mobile notch */
+/* Safe area for mobile notch + dynamic island */
 @supports (padding: env(safe-area-inset-top)) {
   body {
     padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 
@@ -30,17 +35,47 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.01);
 }
 
-/* Smooth scrollbar */
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: transform, opacity, backdrop-filter;
+}
+
+.glass-dark {
+  background: rgba(28, 28, 30, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: transform, opacity, backdrop-filter;
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scrollbar for visible scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #C7C7CC;
-  border-radius: 5px;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #AEAEB2;
@@ -63,7 +98,7 @@ body {
   }
 }
 
-/* iOS-style progress bar */
+/* iOS-style progress bar with smooth fill */
 .progress-bar {
   height: 8px;
   border-radius: 4px;
@@ -77,30 +112,97 @@ body {
   transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* Gradient progress fill */
+.progress-fill-gradient-green {
+  background: linear-gradient(90deg, #34C759, #30D158);
+}
+.progress-fill-gradient-orange {
+  background: linear-gradient(90deg, #FF9500, #FF9F0A);
+}
+.progress-fill-gradient-red {
+  background: linear-gradient(90deg, #FF3B30, #FF453A);
+}
+
 /* Apple buttons */
 .btn-apple-primary {
   background-color: #007AFF;
   color: #FFFFFF;
-  font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 10px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 14px;
   transition: opacity 0.2s ease, transform 0.1s ease;
 }
 .btn-apple-primary:active {
   opacity: 0.8;
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .btn-apple-secondary {
   background-color: #FFFFFF;
   color: #007AFF;
-  font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 10px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 14px;
   border: 1px solid #E5E5EA;
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 .btn-apple-secondary:active {
   background-color: #F2F2F7;
+  transform: scale(0.97);
+}
+
+/* iOS-like touch feedback for interactive cards */
+.card-interactive {
+  transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.15s ease;
+}
+.card-interactive:active {
   transform: scale(0.98);
+}
+
+/* Animated gradient border effect */
+@keyframes gradient-rotate {
+  0% { --angle: 0deg; }
+  100% { --angle: 360deg; }
+}
+
+/* Staggered animation delays for list items */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+
+/* Chip/Pill active states */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid #E5E5EA;
+  background: #FFFFFF;
+  color: #8E8E93;
+}
+.chip:active {
+  transform: scale(0.96);
+}
+.chip-active {
+  background: #1C1C1E;
+  color: #FFFFFF;
+  border-color: #1C1C1E;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Notification badge pulse */
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
 }

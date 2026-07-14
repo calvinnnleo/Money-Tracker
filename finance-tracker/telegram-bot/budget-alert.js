@@ -1,4 +1,4 @@
-import { getAllTransactions, getBudgets } from "./sheets.js";
+import { getAllTransactions, getBudgets } from "./db.js";
 
 function formatRupiah(n) {
   return "Rp" + Math.round(n).toLocaleString("id-ID");

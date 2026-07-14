@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import MobileDashboard from "./components/MobileDashboard";
-import DesktopDashboard from "./components/DesktopDashboard";
 import { AlertCircle } from "lucide-react";
 
 const COLORS = {
@@ -18,91 +17,167 @@ const COLORS = {
   Lainnya:       "#8E8E93", // Gray
 };
 
-const MOCK_DATA = {
-  transactions: [
-    // July 2026
-    { date: "2026-07-01", category: "Makanan", note: "Nasi Padang Siang", amount: 35000, type: "Expense" },
-    { date: "2026-07-01", category: "Belanja", note: "Beli Kaos Uniqlo", amount: 299000, type: "Expense" },
-    { date: "2026-07-01", category: "Transportasi", note: "Isi Bensin Mobil", amount: 150000, type: "Expense" },
-    { date: "2026-07-01", category: "Gaji", note: "Gaji Bulanan Utama", amount: 15000000, type: "Income" },
-    { date: "2026-07-02", category: "Hiburan", note: "Langganan Netflix", amount: 186000, type: "Expense" },
-    { date: "2026-07-02", category: "Makanan", note: "Kopi Starbak", amount: 58000, type: "Expense" },
-    { date: "2026-07-03", category: "Tagihan", note: "Listrik & Air PLN", amount: 620000, type: "Expense" },
-    { date: "2026-07-04", category: "Belanja", note: "Sepatu Running Baru", amount: 1250000, type: "Expense" },
-    
-    // June 2026 (For MoM calculations)
-    { date: "2026-06-15", category: "Gaji", note: "Gaji Bulanan", amount: 14500000, type: "Income" },
-    { date: "2026-06-18", category: "Makanan", note: "Makan Keluarga Weekend", amount: 450000, type: "Expense" },
-    { date: "2026-06-20", category: "Tagihan", note: "Wifi IndiHome", amount: 450000, type: "Expense" },
-    { date: "2026-06-25", category: "Belanja", note: "Belanja Bulanan Supermarket", amount: 850000, type: "Expense" },
-    { date: "2026-06-28", category: "Hiburan", note: "Tiket Bioskop XXI", amount: 100000, type: "Expense" },
-    { date: "2026-06-29", category: "Transportasi", note: "Servis Rutin Motor", amount: 250000, type: "Expense" },
-    
-    // Trend Data (Last 6 Months)
-    { date: "2026-05-10", category: "Gaji", note: "Income", amount: 14000000, type: "Income" },
-    { date: "2026-05-15", category: "Makanan", note: "Expense", amount: 3200000, type: "Expense" },
-    { date: "2026-04-10", category: "Gaji", note: "Income", amount: 14000000, type: "Income" },
-    { date: "2026-04-15", category: "Makanan", note: "Expense", amount: 2800000, type: "Expense" },
-    { date: "2026-03-10", category: "Gaji", note: "Income", amount: 13500000, type: "Income" },
-    { date: "2026-03-15", category: "Makanan", note: "Expense", amount: 3100000, type: "Expense" },
-    { date: "2026-02-10", category: "Gaji", note: "Income", amount: 13500000, type: "Income" },
-    { date: "2026-02-15", category: "Makanan", note: "Expense", amount: 3500000, type: "Expense" },
-  ],
-  budgets: [
-    { category: "Makanan", budget: 1500000 },
-    { category: "Transportasi", budget: 800000 },
-    { category: "Belanja", budget: 2000000 },
-    { category: "Tagihan", budget: 1000000 },
-    { category: "Hiburan", budget: 500000 },
-    { category: "Kesehatan", budget: 300000 }
-  ]
-};
-
 export default function Page() {
-  const [data, setData] = useState(MOCK_DATA);
+  const [data, setData] = useState({ transactions: [], budgets: [] });
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
+  // Custom Profile, Settings and Transactions
+  const [userName, setUserName] = useState("Calvin");
+  const [savingsTarget, setSavingsTarget] = useState(2000000);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [localTransactions, setLocalTransactions] = useState([]);
   
   // Date selection states
   const [selectedMonth, setSelectedMonth] = useState("");
-  
-  // Client screen detection state
-  const [isMobile, setIsMobile] = useState(true);
 
-  // Initialize dates
+  // Initialize dates and load local storage budgets if available
   useEffect(() => {
     const now = new Date();
     const year = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, "0");
     setSelectedMonth(`${year}-${m}`);
+
+    // Load custom budgets from localStorage
+    const localBudgets = localStorage.getItem("saved_budgets");
+    if (localBudgets) {
+      try {
+        const parsed = JSON.parse(localBudgets);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setData(prev => ({ ...prev, budgets: parsed }));
+        }
+      } catch (e) {
+        console.error("Failed to parse saved_budgets", e);
+      }
+    }
+
+    // Hydrate settings
+    const savedName = localStorage.getItem("saved_user_name");
+    if (savedName) setUserName(savedName);
+
+    const savedTarget = localStorage.getItem("saved_savings_target");
+    if (savedTarget) setSavingsTarget(parseFloat(savedTarget) || 2000000);
+
+    const savedDarkMode = localStorage.getItem("saved_dark_mode");
+    if (savedDarkMode) setIsDarkMode(savedDarkMode === "true");
+
+    const savedLocalTxs = localStorage.getItem("saved_local_transactions");
+    if (savedLocalTxs) {
+      try {
+        const parsed = JSON.parse(savedLocalTxs);
+        if (Array.isArray(parsed)) {
+          setLocalTransactions(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to parse saved_local_transactions", e);
+      }
+    }
   }, []);
 
-  // Listen to screen resize to dynamically switch layout (Web vs HP)
+  // Sync to localStorage
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    // Set initial size
-    handleResize();
-    
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    localStorage.setItem("saved_user_name", userName);
+  }, [userName]);
+
+  useEffect(() => {
+    localStorage.setItem("saved_savings_target", savingsTarget.toString());
+  }, [savingsTarget]);
+
+  useEffect(() => {
+    localStorage.setItem("saved_dark_mode", isDarkMode.toString());
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    localStorage.setItem("saved_local_transactions", JSON.stringify(localTransactions));
+  }, [localTransactions]);
+
+  // Sync budgets back to localStorage when updated
+  useEffect(() => {
+    if (data && data.budgets && data.budgets.length > 0) {
+      localStorage.setItem("saved_budgets", JSON.stringify(data.budgets));
+    }
+  }, [data.budgets]);
 
   // Fetch API (Saves to state if server is online, fallback silently if offline)
   useEffect(() => {
+    setLoading(true);
     fetch("/api/transactions")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          throw new Error("HTTP error " + r.status);
+        }
+        return r.json();
+      })
       .then((d) => {
-        if (!d.error) {
-          setData(d);
+        if (d && !d.error && Array.isArray(d.transactions)) {
+          setData(prev => {
+            const sheetBudgets = d.budgets || [];
+            const mergedBudgets = [...prev.budgets];
+            sheetBudgets.forEach(sb => {
+              const idx = mergedBudgets.findIndex(mb => mb.category.toLowerCase() === sb.category.toLowerCase());
+              if (idx >= 0) {
+                mergedBudgets[idx] = sb;
+              } else {
+                mergedBudgets.push(sb);
+              }
+            });
+            return {
+              ...d,
+              budgets: mergedBudgets.length > 0 ? mergedBudgets : sheetBudgets
+            };
+          });
+        } else if (d && d.error) {
+          console.warn("API returned error: ", d.error);
         }
       })
       .catch((err) => {
         console.warn("API Offline / Belum siap. Berjalan menggunakan Local Mock Data untuk Front-End dev.");
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
+
+  // Budget helper functions
+  const handleAddBudget = async (category, amount) => {
+    // Optimistic UI update
+    setData(prev => {
+      const exists = prev.budgets.some(b => b.category.toLowerCase() === category.toLowerCase());
+      let newBudgets;
+      if (exists) {
+        newBudgets = prev.budgets.map(b => b.category.toLowerCase() === category.toLowerCase() ? { ...b, budget: amount } : b);
+      } else {
+        newBudgets = [...prev.budgets, { category, budget: amount }];
+      }
+      return { ...prev, budgets: newBudgets };
+    });
+
+    try {
+      await fetch("/api/budget", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category, budget: amount }),
+      });
+    } catch (err) {
+      console.error("Gagal menyimpan budget ke Sheets:", err.message);
+    }
+  };
+
+  const handleDeleteBudget = async (category) => {
+    // Optimistic UI update
+    setData(prev => {
+      const newBudgets = prev.budgets.filter(b => b.category.toLowerCase() !== category.toLowerCase());
+      return { ...prev, budgets: newBudgets };
+    });
+
+    try {
+      await fetch(`/api/budget?category=${encodeURIComponent(category)}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.error("Gagal menghapus budget dari Sheets:", err.message);
+    }
+  };
 
   // Previous month calculated from selected month
   const prevMonth = useMemo(() => {
@@ -140,14 +215,19 @@ export default function Page() {
     setSelectedMonth(`${y}-${String(m).padStart(2, "0")}`);
   };
 
+  // Merged transactions (Google Sheet + local manual inputs)
+  const allTransactions = useMemo(() => {
+    return [...(data?.transactions || []), ...localTransactions];
+  }, [data?.transactions, localTransactions]);
+
   // Filter transactions for the selected month
   const monthlyData = useMemo(() => {
     if (!data) return { txs: [], income: 0, expense: 0 };
-    const txs = data.transactions.filter((t) => t.date?.startsWith(selectedMonth));
+    const txs = allTransactions.filter((t) => t.date?.startsWith(selectedMonth));
     const income = txs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
     const expense = txs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
     return { txs, income, expense };
-  }, [data, selectedMonth]);
+  }, [allTransactions, selectedMonth, data]);
 
   // Category breakdown for budgets & charts
   const categoryData = useMemo(() => {
@@ -197,7 +277,7 @@ export default function Page() {
   const trendData = useMemo(() => {
     if (!data) return [];
     const byMonth = {};
-    for (const t of data.transactions) {
+    for (const t of allTransactions) {
       const m = t.date?.slice(0, 7);
       if (!m) continue;
       byMonth[m] = byMonth[m] || { month: m, Pemasukan: 0, Pengeluaran: 0 };
@@ -207,13 +287,13 @@ export default function Page() {
     return Object.values(byMonth)
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-6);
-  }, [data]);
+  }, [allTransactions, data]);
 
   // Insights statistics (savings rate, daily average, MoM change)
   const stats = useMemo(() => {
     if (!data || !selectedMonth) return null;
-    const currentTxs = data.transactions.filter((t) => t.date && t.date.startsWith(selectedMonth));
-    const previousTxs = data.transactions.filter((t) => t.date && t.date.startsWith(prevMonth));
+    const currentTxs = allTransactions.filter((t) => t.date && t.date.startsWith(selectedMonth));
+    const previousTxs = allTransactions.filter((t) => t.date && t.date.startsWith(prevMonth));
 
     const currentSpent = currentTxs.filter((t) => t.type === "Expense").reduce((sum, t) => sum + t.amount, 0);
     const prevSpent = previousTxs.filter((t) => t.type === "Expense").reduce((sum, t) => sum + t.amount, 0);
@@ -264,7 +344,23 @@ export default function Page() {
       largestCategory,
       categoryMoM,
     };
-  }, [data, selectedMonth, prevMonth]);
+  }, [allTransactions, selectedMonth, prevMonth, data]);
+
+  // Add manual transactions directly from the dashboard
+  const handleAddTransaction = async (newTx) => {
+    // Optimistic UI update
+    setLocalTransactions((prev) => [...prev, newTx]);
+
+    try {
+      await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTx),
+      });
+    } catch (err) {
+      console.error("Gagal menyimpan transaksi ke Sheets:", err.message);
+    }
+  };
 
   // Initial spinner loading
   if (loading) {
@@ -293,26 +389,10 @@ export default function Page() {
     );
   }
 
-  // Switch display component dynamically based on viewport check
-  if (isMobile) {
-    return (
-      <MobileDashboard
-        data={data}
-        monthlyData={monthlyData}
-        categoryData={categoryData}
-        donutData={donutData}
-        trendData={trendData}
-        stats={stats}
-        selectedMonth={selectedMonth}
-        setSelectedMonth={setSelectedMonth}
-        changeMonth={changeMonth}
-      />
-    );
-  }
-
   return (
-    <DesktopDashboard
+    <MobileDashboard
       data={data}
+      allTransactions={allTransactions}
       monthlyData={monthlyData}
       categoryData={categoryData}
       donutData={donutData}
@@ -321,6 +401,17 @@ export default function Page() {
       selectedMonth={selectedMonth}
       setSelectedMonth={setSelectedMonth}
       changeMonth={changeMonth}
+      onAddBudget={handleAddBudget}
+      onDeleteBudget={handleDeleteBudget}
+      
+      // Profiles, settings and custom transaction support
+      userName={userName}
+      setUserName={setUserName}
+      savingsTarget={savingsTarget}
+      setSavingsTarget={setSavingsTarget}
+      isDarkMode={isDarkMode}
+      setIsDarkMode={setIsDarkMode}
+      onAddTransaction={handleAddTransaction}
     />
   );
 }

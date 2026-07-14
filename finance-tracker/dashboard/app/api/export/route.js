@@ -1,5 +1,7 @@
+export const dynamic = "force-dynamic";
+
 import ExcelJS from "exceljs";
-import { fetchTransactions } from "../../../lib/sheets";
+import { getDbTransactions, hasSupabaseConfig } from "../../../lib/supabase";
 
 const DUMMY_TRANSACTIONS = [
   { date: `${new Date().toISOString().slice(0, 7)}-01`, type: "Income", category: "Gaji", amount: 5000000, note: "Gaji Utama Bulanan" },
@@ -48,13 +50,11 @@ export async function GET(request) {
 
   let transactions;
   
-  const hasSheetConfig = process.env.GOOGLE_SHEET_ID && process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64;
-
-  if (!hasSheetConfig) {
+  if (!hasSupabaseConfig()) {
     transactions = DUMMY_TRANSACTIONS;
   } else {
     try {
-      transactions = await fetchTransactions();
+      transactions = await getDbTransactions();
     } catch (err) {
       console.warn("⚠️ Gagal mengambil data untuk export. Mengalihkan ke data dummy:", err.message);
       transactions = DUMMY_TRANSACTIONS;

@@ -1,11 +1,19 @@
 import fs from "fs";
 import path from "path";
-import { getAllTransactions, getBudgetStatus } from "./sheets.js";
+import { getAllTransactions, getBudgetStatus } from "./db.js";
 
 const SETTINGS_PATH = "./settings.json";
 
 function formatRupiah(n) {
   return "Rp" + Math.round(n).toLocaleString("id-ID");
+}
+
+function getSafeDashboardUrl() {
+  const url = process.env.DASHBOARD_URL || "";
+  if (!url || url.includes("localhost") || url.includes("127.0.0.1")) {
+    return "https://t.me/calvin_dompet_bot"; // Fallback if localhost
+  }
+  return url;
 }
 
 // Default settings object
@@ -193,7 +201,7 @@ async function sendWeeklySummary(bot, ownerId) {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "📊 Buka Dashboard", url: process.env.DASHBOARD_URL || "https://finance-kamu.vercel.app" },
+            { text: "📊 Buka Dashboard", url: getSafeDashboardUrl() },
             { text: "🏠 Menu Utama", callback_data: "action_menu" }
           ]
         ]
@@ -246,7 +254,7 @@ async function sendMonthlyReport(bot, ownerId) {
         inline_keyboard: [
           [
             { text: "📊 Atur Budget Baru", callback_data: "action_budget_set_menu" },
-            { text: "📥 Download Excel", url: `${process.env.DASHBOARD_URL || "https://finance-kamu.vercel.app"}/api/export` }
+            { text: "📥 Download Excel", url: `${getSafeDashboardUrl() === "https://t.me/calvin_dompet_bot" ? "https://finance-kamu.vercel.app" : getSafeDashboardUrl()}/api/export` }
           ],
           [
             { text: "🏠 Menu Utama", callback_data: "action_menu" }

@@ -8,13 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.3",
+    "exceljs": "^4.4.0",
+    "googleapis": "^140.0.1",
+    "lucide-react": "^0.460.0",
     "next": "14.2.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.12.7",
-    "googleapis": "^140.0.1",
-    "exceljs": "^4.4.0",
-    "lucide-react": "^0.460.0"
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.19",
