@@ -1237,94 +1237,25 @@ bot.on("message", async (msg) => {
   // Intercept Reply Keyboard Button clicks
   if (text === "🎛️ Menu Utama") {
     clearSession(telegramId);
-    const mergedMarkup = {
-      reply_markup: {
-        inline_keyboard: MAIN_MENU.reply_markup.inline_keyboard,
-        keyboard: REPLY_KEYBOARD.reply_markup.keyboard,
-        resize_keyboard: true,
-        one_time_keyboard: false
-      }
-    };
-    bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...mergedMarkup });
+    bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
     return;
   }
 
   if (text === "📊 Ringkasan") {
-    const rows = await getAllTransactions(dbUserId);
-    const thisMonth = new Date().toISOString().slice(0, 7);
-
-    let income = 0;
-    let expense = 0;
-    const byCategory = {};
-
-    for (const [date, type, category, amount] of rows) {
-      if (!date || !date.startsWith(thisMonth)) continue;
-      const amt = Number(amount) || 0;
-      if (type === "Income") income += amt;
-      else {
-        expense += amt;
-        byCategory[category] = (byCategory[category] || 0) + amt;
-      }
-    }
-
-    const catLines = Object.entries(byCategory)
-      .sort((a, b) => b[1] - a[1])
-      .map(([c, v]) => `  - ${c}: *${formatRupiah(v)}*`)
-      .join("\n");
-
-    const responseMsg = [
-      `📊 *Ringkasan Bulan Ini (${thisMonth})*\n`,
-      `• Pemasukan: *${formatRupiah(income)}*`,
-      `• Pengeluaran: *${formatRupiah(expense)}*`,
-      `• Selisih Saldo: *${formatRupiah(income - expense)}*\n`,
-      `📈 *Rincian per Kategori:*`,
-      catLines || "  _(belum ada pengeluaran)_"
-    ].join("\n");
-
-    bot.sendMessage(msg.chat.id, responseMsg, { parse_mode: "Markdown", ...REPLY_KEYBOARD });
+    clearSession(telegramId);
+    bot.sendMessage(msg.chat.id, "📊 *Pilih Periode Ringkasan Keuangan:*", { parse_mode: "Markdown", ...RINGKASAN_MENU });
     return;
   }
 
   if (text === "💰 Cek Budget") {
-    const status = await getBudgetStatus(dbUserId);
-    
-    const lines = status.status.map((b) => {
-      const icon = b.percentage >= 100 ? "🚨" : b.percentage >= 80 ? "⚠️" : "✅";
-      const limitStr = b.budget ? `/${formatRupiah(b.budget)}` : "";
-      
-      const filled = Math.min(Math.round(b.percentage / 10), 10);
-      const empty = 10 - filled;
-      const bar = "█".repeat(filled) + "░".repeat(empty);
-      
-      return `*${b.category}*\n\`${bar}\` ${formatRupiah(b.spent)}${limitStr} (${Math.round(b.percentage)}%)`;
-    }).join("\n\n");
-
-    const responseMsg = [
-      `🎯 *Pemantauan Budget (${status.thisMonth})*\n`,
-      lines || "_(Belum ada budget terkonfigurasi)_",
-      `\n💰 Total Pengeluaran: *${formatRupiah(status.totalSpent)}*`
-    ].join("\n");
-
-    bot.sendMessage(msg.chat.id, responseMsg, { parse_mode: "Markdown", ...REPLY_KEYBOARD });
+    clearSession(telegramId);
+    bot.sendMessage(msg.chat.id, "💰 *Menu Budgeting:*", { parse_mode: "Markdown", ...BUDGET_MENU_FULL });
     return;
   }
 
   if (text === "📋 Riwayat") {
-    const txs = await getAllTransactions(dbUserId);
-    const recent = txs.slice(-10).reverse(); // Last 10
-
-    const lines = recent.map((t, idx) => {
-      const typeSign = t[1] === "Expense" ? "-" : "+";
-      const amountFormatted = formatRupiah(Number(t[3]) || 0);
-      return `${idx + 1}. *${t[2]}* | ${t[4] || "-"} | \`${typeSign}${amountFormatted}\` | _${t[0]}_`;
-    }).join("\n");
-
-    const responseMsg = [
-      `📋 *10 Transaksi Terakhir:*\n`,
-      lines || "_(belum ada riwayat transaksi)_"
-    ].join("\n");
-
-    bot.sendMessage(msg.chat.id, responseMsg, { parse_mode: "Markdown", ...REPLY_KEYBOARD });
+    clearSession(telegramId);
+    bot.sendMessage(msg.chat.id, "📋 *Pilihan Riwayat Transaksi:*", { parse_mode: "Markdown", ...RIWAYAT_MENU });
     return;
   }
 
