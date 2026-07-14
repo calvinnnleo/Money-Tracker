@@ -1,12 +1,12 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "TrackPengeluaran — Buku Kas Digital",
+  title: "KasLeo — Buku Kas Digital",
   description: "Dashboard keuangan pribadi berbasis Google Sheets & Telegram Bot",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "KasPola",
+    title: "KasLeo",
   },
 };
 
