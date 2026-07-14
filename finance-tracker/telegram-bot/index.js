@@ -37,6 +37,18 @@ try {
   bot.getMe().then((me) => {
     botUsername = me.username;
     console.log(`Bot jalan. Terhubung dengan database Supabase. Username: @${botUsername}`);
+    
+    // Register commands in Telegram Bot Menu
+    bot.setMyCommands([
+      { command: "start", description: "Memulai bot & Tampilkan sambutan" },
+      { command: "menu", description: "Buka Menu Utama Keuangan" },
+      { command: "link", description: "Hubungkan akun ke Dashboard Web" },
+      { command: "help", description: "Tampilkan panduan penggunaan" }
+    ]).then(() => {
+      console.log("✅ Daftar perintah bot berhasil didaftarkan ke Telegram.");
+    }).catch((err) => {
+      console.warn("⚠️ Gagal mendaftarkan perintah ke Telegram:", err.message);
+    });
   });
   startScheduler(bot, OWNER_ID);
 } catch (err) {
