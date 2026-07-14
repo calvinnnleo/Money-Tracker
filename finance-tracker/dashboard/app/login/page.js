@@ -69,10 +69,15 @@ export default function LoginPage() {
 
         if (signUpError) throw signUpError;
 
-        setMessage("Pendaftaran berhasil! Silakan Sign In dengan akun baru kamu.");
-        setActiveTab("signin");
-        setPassword("");
-        setConfirmPassword("");
+        if (data?.session) {
+          router.push("/");
+          router.refresh();
+        } else {
+          setMessage("Pendaftaran berhasil! Silakan masuk dengan akun baru kamu.");
+          setActiveTab("signin");
+          setPassword("");
+          setConfirmPassword("");
+        }
       }
     } catch (err) {
       setError(err.message || "Terjadi kesalahan. Silakan coba lagi.");
@@ -110,7 +115,14 @@ export default function LoginPage() {
           {/* Tab Switcher */}
           <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-200 mb-6">
             <button
-              onClick={() => { setActiveTab("signin"); setError(null); setMessage(null); }}
+              onClick={() => {
+                setActiveTab("signin");
+                setError(null);
+                setMessage(null);
+                setDisplayName("");
+                setPassword("");
+                setConfirmPassword("");
+              }}
               className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition ${
                 activeTab === "signin"
                   ? "bg-white shadow-sm border border-slate-200/50 text-[#007AFF]"
@@ -120,7 +132,14 @@ export default function LoginPage() {
               Sign In
             </button>
             <button
-              onClick={() => { setActiveTab("signup"); setError(null); setMessage(null); }}
+              onClick={() => {
+                setActiveTab("signup");
+                setError(null);
+                setMessage(null);
+                setDisplayName("");
+                setPassword("");
+                setConfirmPassword("");
+              }}
               className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition ${
                 activeTab === "signup"
                   ? "bg-white shadow-sm border border-slate-200/50 text-[#007AFF]"
