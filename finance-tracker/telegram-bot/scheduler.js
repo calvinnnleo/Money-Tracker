@@ -8,10 +8,11 @@ function formatRupiah(n) {
   return "Rp" + Math.round(n).toLocaleString("id-ID");
 }
 
-function getSafeDashboardUrl() {
+function getSafeDashboardUrl(bot) {
   const url = process.env.DASHBOARD_URL || "";
   if (!url || url.includes("localhost") || url.includes("127.0.0.1")) {
-    return "https://t.me/"; // Fallback if localhost
+    const username = bot?.username || "";
+    return username ? `https://t.me/${username}` : "https://t.me/";
   }
   return url;
 }
@@ -213,7 +214,7 @@ async function sendWeeklySummary(bot, ownerId) {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "📊 Buka Dashboard", url: getSafeDashboardUrl() },
+            { text: "📊 Buka Dashboard", url: getSafeDashboardUrl(bot) },
             { text: "🏠 Menu Utama", callback_data: "action_menu" }
           ]
         ]
@@ -272,7 +273,7 @@ async function sendMonthlyReport(bot, ownerId) {
         inline_keyboard: [
           [
             { text: "📊 Atur Budget Baru", callback_data: "action_budget_set_menu" },
-            { text: "📥 Download Excel", url: `${getSafeDashboardUrl().includes("t.me") ? "https://finance-kamu.vercel.app" : getSafeDashboardUrl()}/api/export` }
+            { text: "📥 Download Excel", url: `${getSafeDashboardUrl(bot).includes("t.me") ? "https://finance-kamu.vercel.app" : getSafeDashboardUrl(bot)}/api/export` }
           ],
           [
             { text: "🏠 Menu Utama", callback_data: "action_menu" }

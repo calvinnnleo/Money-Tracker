@@ -36,6 +36,7 @@ let botUsername = "bot";
 try {
   bot.getMe().then((me) => {
     botUsername = me.username;
+    bot.username = me.username;
     console.log(`Bot jalan. Terhubung dengan database Supabase. Username: @${botUsername}`);
     
     // Register commands in Telegram Bot Menu
