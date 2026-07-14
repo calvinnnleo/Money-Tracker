@@ -9,7 +9,8 @@ import {
   deleteLastTransaction,
   setBudget,
   getBudgetStatus,
-  generateLoginLink,
+  createLinkCode,
+  getUserIdByTelegramId,
 } from "./db.js";
 import { getSession, setSession, clearSession } from "./session.js";
 import { checkBudgetAlert } from "./budget-alert.js";
@@ -26,9 +27,13 @@ if (!TOKEN) {
 }
 
 const bot = new TelegramBot(TOKEN, { polling: true });
+let botUsername = "bot";
 
 try {
-  console.log("Bot jalan. Terhubung dengan database Supabase.");
+  bot.getMe().then((me) => {
+    botUsername = me.username;
+    console.log(`Bot jalan. Terhubung dengan database Supabase. Username: @${botUsername}`);
+  });
   startScheduler(bot, OWNER_ID);
 } catch (err) {
   console.error("❌ Gagal memulai bot:", err.message);
@@ -45,7 +50,7 @@ function formatRupiah(n) {
 function getSafeDashboardUrl() {
   const url = process.env.DASHBOARD_URL || "";
   if (!url || url.includes("localhost") || url.includes("127.0.0.1")) {
-    return "https://t.me/calvin_dompet_bot"; // Fallback to bot's telegram link if localhost
+    return `https://t.me/${botUsername}`;
   }
   return url;
 }
@@ -284,32 +289,25 @@ bot.onText(/\/menu/, (msg) => {
   bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...mergedMarkup });
 });
 
-bot.onText(/\/login/, async (msg) => {
+bot.onText(/\/link/, async (msg) => {
   if (!isOwner(msg)) return;
   clearSession(msg.from.id);
   
-  const loadingMsg = await bot.sendMessage(msg.chat.id, "🔑 *Menyiapkan tautan masuk aman...*", { parse_mode: "Markdown" });
+  const loadingMsg = await bot.sendMessage(msg.chat.id, "🔗 *Membuat kode penghubung...*", { parse_mode: "Markdown" });
   
   try {
-    const loginLink = await generateLoginLink();
-    
-    const keyboard = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "🚀 Masuk ke Dashboard", url: loginLink }
-          ]
-        ]
-      }
-    };
+    const telegramName = msg.from.username || msg.from.first_name || "User";
+    const code = await createLinkCode(msg.from.id, telegramName);
     
     await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
     
     await bot.sendMessage(
       msg.chat.id,
-      `🔑 *Tautan Masuk Aman Siap!*\n\n` +
-      `Klik tombol di bawah untuk masuk ke dashboard web secara otomatis tanpa kata sandi.`,
-      { parse_mode: "Markdown", ...keyboard }
+      `🔑 *Kode Penghubung Siap!*\n\n` +
+      `Masukkan kode berikut di menu **Pengaturan Profil** dashboard web kamu:\n\n` +
+      `*${code}*\n\n` +
+      `_Kode ini hanya berlaku selama 10 menit._`,
+      { parse_mode: "Markdown" }
     );
   } catch (err) {
     try {
@@ -317,8 +315,7 @@ bot.onText(/\/login/, async (msg) => {
     } catch (e) {}
     await bot.sendMessage(
       msg.chat.id,
-      `❌ *Gagal membuat tautan masuk:*\n${err.message}\n\n` +
-      `Pastikan kamu sudah mendaftarkan minimal 1 email di tab *Authentication -> Users* pada dashboard Supabase kamu.`,
+      `❌ *Gagal membuat kode penghubung:*\n${err.message}`,
       { parse_mode: "Markdown" }
     );
   }
@@ -336,7 +333,7 @@ bot.onText(/\/help/, (msg) => {
     `  Contoh: \`masuk 5jt gaji bulan ini\`, \`freelance 1.2jt masuk\`\n\n` +
     `• *Shorthand nominal:* \`rb\`/\`ribu\` (x1000), \`k\` (x1000), \`jt\`/\`juta\` (x1000000)\n\n` +
     `• *Kategori Pintar:* Bot otomatis menebak kategori menggunakan AI jika tidak ada keyword yang cocok.\n\n` +
-    `*Perintah lain:* /menu, /start, /login`,
+    `*Perintah lain:* /menu, /start, /link`,
     { parse_mode: "Markdown" }
   );
 });
@@ -344,11 +341,11 @@ bot.onText(/\/help/, (msg) => {
 // Main callback queries (button clicks)
 bot.on("callback_query", async (callbackQuery) => {
   const msg = callbackQuery.message;
-  const userId = callbackQuery.from.id;
+  const telegramId = callbackQuery.from.id;
   const data = callbackQuery.data;
 
   // Verify owner
-  if (String(userId) !== OWNER_ID) {
+  if (String(telegramId) !== OWNER_ID) {
     bot.answerCallbackQuery(callbackQuery.id, { text: "Akses Ditolak." });
     return;
   }
@@ -356,7 +353,22 @@ bot.on("callback_query", async (callbackQuery) => {
   // Answer callback query so Telegram loader stops
   bot.answerCallbackQuery(callbackQuery.id);
 
-  const session = getSession(userId);
+  const dbUserId = await getUserIdByTelegramId(telegramId);
+  if (!dbUserId && data !== "action_dismiss_reminder") {
+    bot.sendMessage(
+      msg.chat.id,
+      "⚠️ *Bot belum terhubung dengan akun Dashboard!*\n\n" +
+      "Silakan hubungkan akun terlebih dahulu:\n" +
+      "1. Buka dashboard web kamu.\n" +
+      "2. Masuk ke **Pengaturan Profil**.\n" +
+      "3. Ketik perintah `/link` di bot ini.\n" +
+      "4. Masukkan kode 6 digit yang diberikan bot ke dashboard web.",
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+
+  const session = getSession(telegramId);
 
   // 1. Navigation Actions
   if (data === "action_menu") {
@@ -396,7 +408,7 @@ bot.on("callback_query", async (callbackQuery) => {
       }
     );
   } else if (data === "action_ringkasan") {
-    const rows = await getAllTransactions();
+    const rows = await getAllTransactions(dbUserId);
     const thisMonth = new Date().toISOString().slice(0, 7);
 
     let income = 0;
@@ -440,7 +452,7 @@ bot.on("callback_query", async (callbackQuery) => {
       ...backKeyboard
     });
   } else if (data === "action_budget") {
-    const status = await getBudgetStatus();
+    const status = await getBudgetStatus(dbUserId);
     
     const lines = status.status.map((b) => {
       const icon = b.percentage >= 100 ? "🚨" : b.percentage >= 80 ? "⚠️" : "✅";
@@ -483,7 +495,7 @@ bot.on("callback_query", async (callbackQuery) => {
       ...BUDGET_SELECT_MENU
     });
   } else if (data === "action_riwayat") {
-    const txs = await getAllTransactions();
+    const txs = await getAllTransactions(dbUserId);
     const recent = txs.slice(-10).reverse(); // Last 10
 
     const lines = recent.map((t, idx) => {
@@ -510,7 +522,7 @@ bot.on("callback_query", async (callbackQuery) => {
       ...backKeyboard
     });
   } else if (data === "action_hapus") {
-    const last = await getLastTransaction();
+    const last = await getLastTransaction(dbUserId);
     if (!last) {
       bot.sendMessage(msg.chat.id, "Tidak ada transaksi untuk dihapus.");
       return;
@@ -543,7 +555,7 @@ bot.on("callback_query", async (callbackQuery) => {
       }
     );
   } else if (data === "action_confirm_delete") {
-    const deleted = await deleteLastTransaction();
+    const deleted = await deleteLastTransaction(dbUserId);
     if (deleted) {
       bot.editMessageText(
         `✅ *Transaksi berhasil dihapus!*\n\n` +
@@ -728,15 +740,31 @@ bot.on("callback_query", async (callbackQuery) => {
 bot.on("message", async (msg) => {
   if (!isOwner(msg)) return;
   
-  const userId = msg.from.id;
-  const session = getSession(userId);
+  const telegramId = msg.from.id;
   const text = msg.text ? msg.text.trim() : "";
 
   if (text.startsWith("/")) return;
 
+  const dbUserId = await getUserIdByTelegramId(telegramId);
+  if (!dbUserId) {
+    bot.sendMessage(
+      msg.chat.id,
+      "⚠️ *Bot belum terhubung dengan akun Dashboard!*\n\n" +
+      "Silakan hubungkan akun terlebih dahulu:\n" +
+      "1. Buka dashboard web kamu.\n" +
+      "2. Masuk ke **Pengaturan Profil**.\n" +
+      "3. Ketik perintah `/link` di bot ini.\n" +
+      "4. Masukkan kode 6 digit yang diberikan bot ke dashboard web.",
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+
+  const session = getSession(telegramId);
+
   // Intercept Reply Keyboard Button clicks
   if (text === "🎛️ Menu Utama") {
-    clearSession(userId);
+    clearSession(telegramId);
     const mergedMarkup = {
       reply_markup: {
         inline_keyboard: MAIN_MENU.reply_markup.inline_keyboard,
@@ -750,7 +778,7 @@ bot.on("message", async (msg) => {
   }
 
   if (text === "📊 Ringkasan") {
-    const rows = await getAllTransactions();
+    const rows = await getAllTransactions(dbUserId);
     const thisMonth = new Date().toISOString().slice(0, 7);
 
     let income = 0;
@@ -786,7 +814,7 @@ bot.on("message", async (msg) => {
   }
 
   if (text === "💰 Cek Budget") {
-    const status = await getBudgetStatus();
+    const status = await getBudgetStatus(dbUserId);
     
     const lines = status.status.map((b) => {
       const icon = b.percentage >= 100 ? "🚨" : b.percentage >= 80 ? "⚠️" : "✅";
@@ -810,7 +838,7 @@ bot.on("message", async (msg) => {
   }
 
   if (text === "📋 Riwayat") {
-    const txs = await getAllTransactions();
+    const txs = await getAllTransactions(dbUserId);
     const recent = txs.slice(-10).reverse(); // Last 10
 
     const lines = recent.map((t, idx) => {
@@ -851,8 +879,8 @@ bot.on("message", async (msg) => {
     };
 
     try {
-      await addTransaction(transaction);
-      clearSession(userId);
+      await addTransaction(dbUserId, transaction);
+      clearSession(telegramId);
       
       const typeLabel = type === "Income" ? "Pemasukan" : "Pengeluaran";
       bot.sendMessage(
@@ -866,7 +894,7 @@ bot.on("message", async (msg) => {
       );
       
       if (type === "Expense") {
-        await checkBudgetAlert(transaction, bot, msg.chat.id);
+        await checkBudgetAlert(dbUserId, transaction, bot, msg.chat.id);
       }
     } catch (err) {
       bot.sendMessage(msg.chat.id, `❌ Gagal menyimpan transaksi: ${err.message}`);
@@ -892,8 +920,8 @@ bot.on("message", async (msg) => {
     }
 
     try {
-      await setBudget(category, amount);
-      clearSession(userId);
+      await setBudget(dbUserId, category, amount);
+      clearSession(telegramId);
       bot.sendMessage(
         msg.chat.id,
         `✅ *Budget Kategori Berhasil Diatur!*\n\n` +
@@ -924,7 +952,7 @@ bot.on("message", async (msg) => {
   }
 
   try {
-    await addTransaction(parsed);
+    await addTransaction(dbUserId, parsed);
     const typeLabel = parsed.type === "Income" ? "Pemasukan" : "Pengeluaran";
     bot.sendMessage(
       msg.chat.id,
@@ -937,7 +965,7 @@ bot.on("message", async (msg) => {
     );
 
     if (parsed.type === "Expense") {
-      await checkBudgetAlert(parsed, bot, msg.chat.id);
+      await checkBudgetAlert(dbUserId, parsed, bot, msg.chat.id);
     }
   } catch (err) {
     bot.sendMessage(msg.chat.id, `❌ Gagal menyimpan transaksi: ${err.message}`);

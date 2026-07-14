@@ -21,22 +21,22 @@ function client() {
   return supabase;
 }
 
-export async function addTransaction({ date, type, category, amount, note }) {
+export async function addTransaction(userId, { date, type, category, amount, note }) {
   const { error } = await client()
     .from("transactions")
-    .insert([{ date, type, category, amount, note }]);
+    .insert([{ user_id: userId, date, type, category, amount, note }]);
     
   if (error) throw error;
 }
 
-export async function getAllTransactions() {
+export async function getAllTransactions(userId) {
   const { data, error } = await client()
     .from("transactions")
     .select("date, type, category, amount, note, created_at")
+    .eq("user_id", userId)
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  // Return array of arrays matching sheets layout [date, type, category, amount, note, created_at]
   return (data || []).map((t) => [
     t.date,
     t.type,
@@ -47,10 +47,11 @@ export async function getAllTransactions() {
   ]);
 }
 
-export async function getBudgets() {
+export async function getBudgets(userId) {
   const { data, error } = await client()
     .from("budgets")
-    .select("category, budget");
+    .select("category, budget")
+    .eq("user_id", userId);
 
   if (error) throw error;
   return (data || []).map((b) => ({
@@ -59,10 +60,11 @@ export async function getBudgets() {
   }));
 }
 
-export async function getLastTransaction() {
+export async function getLastTransaction(userId) {
   const { data, error } = await client()
     .from("transactions")
     .select("id, date, type, category, amount, note, created_at")
+    .eq("user_id", userId)
     .order("id", { ascending: false })
     .limit(1);
 
@@ -80,8 +82,8 @@ export async function getLastTransaction() {
   };
 }
 
-export async function deleteLastTransaction() {
-  const last = await getLastTransaction();
+export async function deleteLastTransaction(userId) {
+  const last = await getLastTransaction(userId);
   if (!last) return null;
 
   const { error } = await client()
@@ -93,33 +95,33 @@ export async function deleteLastTransaction() {
   return last;
 }
 
-export async function setBudget(category, amount) {
-  // Upsert on category
+export async function setBudget(userId, category, amount) {
   const { error } = await client()
     .from("budgets")
     .upsert(
-      { category, budget: amount },
-      { onConflict: "category" }
+      { user_id: userId, category, budget: amount },
+      { onConflict: "user_id, category" }
     );
 
   if (error) throw error;
 }
 
-export async function deleteBudget(category) {
+export async function deleteBudget(userId, category) {
   const { error } = await client()
     .from("budgets")
     .delete()
+    .eq("user_id", userId)
     .eq("category", category);
 
   if (error) throw error;
 }
 
-export async function getBudgetStatus() {
-  const budgets = await getBudgets();
-  // Get raw transactions to calculate monthly status
+export async function getBudgetStatus(userId) {
+  const budgets = await getBudgets(userId);
   const { data: transactions, error } = await client()
     .from("transactions")
-    .select("date, type, category, amount");
+    .select("date, type, category, amount")
+    .eq("user_id", userId);
 
   if (error) throw error;
 
@@ -165,25 +167,38 @@ export async function getBudgetStatus() {
   };
 }
 
-export async function generateLoginLink() {
-  const { data, error: listError } = await client().auth.admin.listUsers();
-  if (listError) throw listError;
-  
-  const users = data?.users || [];
-  if (users.length === 0) {
-    throw new Error("Belum ada user terdaftar di Supabase Auth. Silakan tambah user baru di tab 'Authentication' dashboard Supabase.");
+// Telegram OTP Linking Helpers
+export async function createLinkCode(telegramId, telegramName) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  
-  const email = users[0].email;
-  const { data: linkData, error: linkError } = await client().auth.admin.generateLink({
-    type: "magiclink",
-    email: email,
-    options: {
-      redirectTo: process.env.DASHBOARD_URL || "http://localhost:3000"
-    }
-  });
-  
-  if (linkError) throw linkError;
-  return linkData.properties.action_link;
+
+  // Deactivate any old active codes for this telegram id
+  await client()
+    .from("telegram_link_codes")
+    .update({ used: true })
+    .eq("telegram_id", telegramId);
+
+  const { error } = await client()
+    .from("telegram_link_codes")
+    .insert([{ code, telegram_id: telegramId, telegram_name: telegramName }]);
+
+  if (error) throw error;
+  return code;
 }
 
+export async function getUserIdByTelegramId(telegramId) {
+  const { data, error } = await client()
+    .from("profiles")
+    .select("id")
+    .eq("telegram_id", telegramId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ Gagal getUserIdByTelegramId:", error.message);
+    return null;
+  }
+  return data ? data.id : null;
+}

@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { getAllTransactions, getBudgetStatus } from "./db.js";
+import { getAllTransactions, getBudgetStatus, getUserIdByTelegramId } from "./db.js";
 
 const SETTINGS_PATH = "./settings.json";
 
@@ -11,7 +11,7 @@ function formatRupiah(n) {
 function getSafeDashboardUrl() {
   const url = process.env.DASHBOARD_URL || "";
   if (!url || url.includes("localhost") || url.includes("127.0.0.1")) {
-    return "https://t.me/calvin_dompet_bot"; // Fallback if localhost
+    return "https://t.me/"; // Fallback if localhost
   }
   return url;
 }
@@ -117,7 +117,13 @@ function getWeekNumberString(d) {
 // Reminders sender functions
 async function sendDailyReminder(bot, ownerId) {
   try {
-    const transactions = await getAllTransactions();
+    const userId = await getUserIdByTelegramId(ownerId);
+    if (!userId) {
+      console.warn(`[Scheduler] Telegram ID ${ownerId} belum terhubung ke user_id di DB. Skip daily reminder.`);
+      return;
+    }
+
+    const transactions = await getAllTransactions(userId);
     const todayStr = new Date().toISOString().slice(0, 10);
     
     // Count transactions today
@@ -156,7 +162,13 @@ async function sendDailyReminder(bot, ownerId) {
 
 async function sendWeeklySummary(bot, ownerId) {
   try {
-    const transactions = await getAllTransactions();
+    const userId = await getUserIdByTelegramId(ownerId);
+    if (!userId) {
+      console.warn(`[Scheduler] Telegram ID ${ownerId} belum terhubung ke user_id di DB. Skip weekly summary.`);
+      return;
+    }
+
+    const transactions = await getAllTransactions(userId);
     
     // Calculate last 7 days range
     const now = new Date();
@@ -217,7 +229,13 @@ async function sendWeeklySummary(bot, ownerId) {
 
 async function sendMonthlyReport(bot, ownerId) {
   try {
-    const budgetStatus = await getBudgetStatus();
+    const userId = await getUserIdByTelegramId(ownerId);
+    if (!userId) {
+      console.warn(`[Scheduler] Telegram ID ${ownerId} belum terhubung ke user_id di DB. Skip monthly report.`);
+      return;
+    }
+
+    const budgetStatus = await getBudgetStatus(userId);
     
     // Format previous month name
     const now = new Date();

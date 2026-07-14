@@ -265,6 +265,9 @@ export default function MobileDashboard({
   setIsDarkMode,
   onAddTransaction,
   onLogout,
+  telegramId,
+  telegramName,
+  onRefreshProfile,
 }) {
   const [activeTab, setActiveTab] = useState("home");
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -301,6 +304,36 @@ export default function MobileDashboard({
   // Settings modal fields
   const [settingName, setSettingName] = useState(userName);
   const [settingTarget, setSettingTarget] = useState(savingsTarget.toString());
+  const [telegramCode, setTelegramCode] = useState("");
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [telegramStatus, setTelegramStatus] = useState(null);
+
+  const handleLinkTelegram = async () => {
+    if (!telegramCode.trim() || telegramCode.trim().length !== 6) {
+      setTelegramStatus({ type: "error", msg: "Kode harus 6 digit." });
+      return;
+    }
+    setTelegramLoading(true);
+    setTelegramStatus(null);
+    try {
+      const res = await fetch("/api/link-telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: telegramCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal menghubungkan.");
+      }
+      setTelegramStatus({ type: "success", msg: "Berhasil terhubung ke Telegram!" });
+      setTelegramCode("");
+      if (onRefreshProfile) onRefreshProfile();
+    } catch (err) {
+      setTelegramStatus({ type: "error", msg: err.message });
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
 
   // Sync setting values when profile modal opens
   useEffect(() => {
@@ -2032,6 +2065,45 @@ export default function MobileDashboard({
                     isDarkMode ? "left-[22px]" : "left-0.5"
                   }`} />
                 </button>
+              </div>
+
+              {/* Telegram Integration */}
+              <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
+                <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Integrasi Telegram</span>
+                {telegramId ? (
+                  <div className="text-xs font-bold text-green flex items-center gap-1.5">
+                    <span>✅ Terhubung ID: {String(telegramId)}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-secondary dark:text-zinc-400 leading-normal">
+                      Ketik <code className="px-1 py-0.5 rounded bg-[#E5E5EA] dark:bg-zinc-800 text-violet font-mono text-[9px]">/link</code> di bot, lalu masukkan kodenya di bawah ini:
+                    </p>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="XXXXXX"
+                        value={telegramCode}
+                        onChange={(e) => setTelegramCode(e.target.value.toUpperCase())}
+                        maxLength={6}
+                        className="flex-1 bg-surface dark:bg-zinc-950 border border-separator/35 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-center text-xs font-black placeholder-secondary/70 uppercase tracking-widest text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
+                      />
+                      <button
+                        type="button"
+                        disabled={telegramLoading}
+                        onClick={handleLinkTelegram}
+                        className="px-3 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
+                      >
+                        {telegramLoading ? "..." : "Link"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {telegramStatus && (
+                  <p className={`text-[9px] font-bold leading-normal mt-1 ${telegramStatus.type === "success" ? "text-green" : "text-red"}`}>
+                    {telegramStatus.msg}
+                  </p>
+                )}
               </div>
 
               {/* Save / Close */}

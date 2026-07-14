@@ -4,12 +4,12 @@ function formatRupiah(n) {
   return "Rp" + Math.round(n).toLocaleString("id-ID");
 }
 
-export async function checkBudgetAlert(transaction, bot, chatId) {
+export async function checkBudgetAlert(userId, transaction, bot, chatId) {
   if (transaction.type !== "Expense") return;
 
   try {
-    const budgets = await getBudgets();
-    const transactions = await getAllTransactions();
+    const budgets = await getBudgets(userId);
+    const transactions = await getAllTransactions(userId);
 
     const thisMonth = new Date().toISOString().slice(0, 7);
     const category = transaction.category;

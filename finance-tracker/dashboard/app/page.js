@@ -33,10 +33,52 @@ export default function Page() {
   };
   
   // Custom Profile, Settings and Transactions
-  const [userName, setUserName] = useState("Calvin");
+  const [userName, setUserName] = useState("User");
+  const [profile, setProfile] = useState(null);
   const [savingsTarget, setSavingsTarget] = useState(2000000);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [localTransactions, setLocalTransactions] = useState([]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("display_name, telegram_id")
+          .eq("id", user.id)
+          .single();
+        if (data) {
+          setProfile(data);
+          setUserName(data.display_name || "User");
+        }
+      }
+    } catch (e) {
+      console.error("Gagal mengambil profil:", e);
+    }
+  };
+
+  const handleUpdateProfileName = async (newName) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ display_name: newName })
+          .eq("id", user.id);
+        if (!error) {
+          setUserName(newName);
+          setProfile(prev => prev ? { ...prev, display_name: newName } : null);
+        }
+      }
+    } catch (e) {
+      console.error("Gagal memperbarui nama profil:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
   
   // Date selection states
   const [selectedMonth, setSelectedMonth] = useState("");
@@ -416,13 +458,16 @@ export default function Page() {
       
       // Profiles, settings and custom transaction support
       userName={userName}
-      setUserName={setUserName}
+      setUserName={handleUpdateProfileName}
       savingsTarget={savingsTarget}
       setSavingsTarget={setSavingsTarget}
       isDarkMode={isDarkMode}
       setIsDarkMode={setIsDarkMode}
       onAddTransaction={handleAddTransaction}
       onLogout={handleLogout}
+      telegramId={profile?.telegram_id}
+      telegramName={profile?.display_name}
+      onRefreshProfile={fetchProfile}
     />
   );
 }
