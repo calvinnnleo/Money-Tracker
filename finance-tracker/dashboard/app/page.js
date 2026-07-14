@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import MobileDashboard from "./components/MobileDashboard";
 import { AlertCircle } from "lucide-react";
+import { createClient } from "../lib/supabase-browser";
 
 const COLORS = {
   Makanan:       "#FF9500", // Orange
@@ -21,6 +23,14 @@ export default function Page() {
   const [data, setData] = useState({ transactions: [], budgets: [] });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
   
   // Custom Profile, Settings and Transactions
   const [userName, setUserName] = useState("Calvin");
@@ -412,6 +422,7 @@ export default function Page() {
       isDarkMode={isDarkMode}
       setIsDarkMode={setIsDarkMode}
       onAddTransaction={handleAddTransaction}
+      onLogout={handleLogout}
     />
   );
 }

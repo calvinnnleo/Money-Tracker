@@ -9,6 +9,7 @@ import {
   deleteLastTransaction,
   setBudget,
   getBudgetStatus,
+  generateLoginLink,
 } from "./db.js";
 import { getSession, setSession, clearSession } from "./session.js";
 import { checkBudgetAlert } from "./budget-alert.js";
@@ -283,6 +284,46 @@ bot.onText(/\/menu/, (msg) => {
   bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...mergedMarkup });
 });
 
+bot.onText(/\/login/, async (msg) => {
+  if (!isOwner(msg)) return;
+  clearSession(msg.from.id);
+  
+  const loadingMsg = await bot.sendMessage(msg.chat.id, "🔑 *Menyiapkan tautan masuk aman...*", { parse_mode: "Markdown" });
+  
+  try {
+    const loginLink = await generateLoginLink();
+    
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "🚀 Masuk ke Dashboard", url: loginLink }
+          ]
+        ]
+      }
+    };
+    
+    await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
+    
+    await bot.sendMessage(
+      msg.chat.id,
+      `🔑 *Tautan Masuk Aman Siap!*\n\n` +
+      `Klik tombol di bawah untuk masuk ke dashboard web secara otomatis tanpa kata sandi.`,
+      { parse_mode: "Markdown", ...keyboard }
+    );
+  } catch (err) {
+    try {
+      await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
+    } catch (e) {}
+    await bot.sendMessage(
+      msg.chat.id,
+      `❌ *Gagal membuat tautan masuk:*\n${err.message}\n\n` +
+      `Pastikan kamu sudah mendaftarkan minimal 1 email di tab *Authentication -> Users* pada dashboard Supabase kamu.`,
+      { parse_mode: "Markdown" }
+    );
+  }
+});
+
 bot.onText(/\/help/, (msg) => {
   if (!isOwner(msg)) return;
   bot.sendMessage(
@@ -295,7 +336,7 @@ bot.onText(/\/help/, (msg) => {
     `  Contoh: \`masuk 5jt gaji bulan ini\`, \`freelance 1.2jt masuk\`\n\n` +
     `• *Shorthand nominal:* \`rb\`/\`ribu\` (x1000), \`k\` (x1000), \`jt\`/\`juta\` (x1000000)\n\n` +
     `• *Kategori Pintar:* Bot otomatis menebak kategori menggunakan AI jika tidak ada keyword yang cocok.\n\n` +
-    `*Perintah lain:* /menu, /start`,
+    `*Perintah lain:* /menu, /start, /login`,
     { parse_mode: "Markdown" }
   );
 });

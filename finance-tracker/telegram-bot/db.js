@@ -164,3 +164,26 @@ export async function getBudgetStatus() {
     status: status.sort((a, b) => b.spent - a.spent),
   };
 }
+
+export async function generateLoginLink() {
+  const { data, error: listError } = await client().auth.admin.listUsers();
+  if (listError) throw listError;
+  
+  const users = data?.users || [];
+  if (users.length === 0) {
+    throw new Error("Belum ada user terdaftar di Supabase Auth. Silakan tambah user baru di tab 'Authentication' dashboard Supabase.");
+  }
+  
+  const email = users[0].email;
+  const { data: linkData, error: linkError } = await client().auth.admin.generateLink({
+    type: "magiclink",
+    email: email,
+    options: {
+      redirectTo: process.env.DASHBOARD_URL || "http://localhost:3000"
+    }
+  });
+  
+  if (linkError) throw linkError;
+  return linkData.properties.action_link;
+}
+

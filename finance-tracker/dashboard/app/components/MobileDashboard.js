@@ -264,6 +264,7 @@ export default function MobileDashboard({
   isDarkMode,
   setIsDarkMode,
   onAddTransaction,
+  onLogout,
 }) {
   const [activeTab, setActiveTab] = useState("home");
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -2055,6 +2056,18 @@ export default function MobileDashboard({
                   Simpan
                 </button>
               </div>
+
+              {onLogout && (
+                <div className="pt-2 border-t border-separator/20 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="w-full py-3.5 rounded-2xl bg-red/10 hover:bg-red/15 text-red font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition"
+                  >
+                    Keluar dari Akun
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

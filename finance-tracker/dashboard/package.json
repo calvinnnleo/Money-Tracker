@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.1",
     "@supabase/supabase-js": "^2.110.3",
     "exceljs": "^4.4.0",
     "googleapis": "^140.0.1",
