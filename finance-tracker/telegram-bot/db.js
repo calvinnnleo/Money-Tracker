@@ -202,3 +202,39 @@ export async function getUserIdByTelegramId(telegramId) {
   }
   return data ? data.id : null;
 }
+
+export async function getTransactionsByCategory(userId, category) {
+  const { data, error } = await client()
+    .from("transactions")
+    .select("date, type, category, amount, note, created_at")
+    .eq("user_id", userId)
+    .eq("category", category)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getTransactionsForExport(userId) {
+  const { data, error } = await client()
+    .from("transactions")
+    .select("date, type, category, amount, note")
+    .eq("user_id", userId)
+    .order("date", { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getProfileInfo(userId) {
+  const { data, error } = await client()
+    .from("profiles")
+    .select("display_name, telegram_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+

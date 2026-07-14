@@ -11,6 +11,10 @@ import {
   getBudgetStatus,
   createLinkCode,
   getUserIdByTelegramId,
+  getTransactionsByCategory,
+  getTransactionsForExport,
+  getProfileInfo,
+  deleteBudget,
 } from "./db.js";
 import { getSession, setSession, clearSession } from "./session.js";
 import { checkBudgetAlert } from "./budget-alert.js";
@@ -60,20 +64,16 @@ const MAIN_MENU = {
   reply_markup: {
     inline_keyboard: [
       [
-        { text: "📝 Catat Pengeluaran", callback_data: "guide_expense" },
-        { text: "📥 Catat Pemasukan", callback_data: "guide_income" },
+        { text: "📝 Catat Transaksi", callback_data: "action_catat" },
+        { text: "📊 Ringkasan", callback_data: "action_ringkasan_menu" },
       ],
       [
-        { text: "📊 Ringkasan", callback_data: "action_ringkasan" },
-        { text: "💰 Cek Budget", callback_data: "action_budget" },
+        { text: "💰 Budget", callback_data: "action_budget_menu" },
+        { text: "📋 Riwayat", callback_data: "action_riwayat_menu" },
       ],
       [
-        { text: "📋 Riwayat", callback_data: "action_riwayat" },
-        { text: "🗑️ Hapus Terakhir", callback_data: "action_hapus" },
-      ],
-      [
-        { text: "⚙️ Pengaturan", callback_data: "action_settings" },
-        { text: "❓ Bantuan", callback_data: "action_help" },
+        { text: "⚙️ Pengaturan", callback_data: "action_pengaturan_menu" },
+        { text: "❓ Bantuan", callback_data: "action_bantuan_menu" },
       ],
       [
         { text: "📈 Buka Dashboard", url: getSafeDashboardUrl() },
@@ -99,6 +99,20 @@ const REPLY_KEYBOARD = {
   }
 };
 
+const CATAT_MENU = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "📝 Catat Pengeluaran", callback_data: "guide_expense" },
+        { text: "📥 Catat Pemasukan", callback_data: "guide_income" },
+      ],
+      [
+        { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
+      ],
+    ],
+  },
+};
+
 const CATEGORY_MENU_EXPENSE = {
   reply_markup: {
     inline_keyboard: [
@@ -119,7 +133,7 @@ const CATEGORY_MENU_EXPENSE = {
         { text: "📌 Lainnya", callback_data: "cat_exp_Lainnya" },
       ],
       [
-        { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
+        { text: "◀ Kembali ke Menu", callback_data: "action_catat" },
       ],
     ],
   },
@@ -133,7 +147,45 @@ const CATEGORY_MENU_INCOME = {
         { text: "📈 Investasi", callback_data: "cat_inc_Investasi" },
       ],
       [
+        { text: "💻 Freelance", callback_data: "cat_inc_Freelance" },
+        { text: "🎁 Hadiah", callback_data: "cat_inc_Hadiah" },
+      ],
+      [
         { text: "📌 Lainnya", callback_data: "cat_inc_Lainnya" },
+      ],
+      [
+        { text: "◀ Kembali ke Menu", callback_data: "action_catat" },
+      ],
+    ],
+  },
+};
+
+const RINGKASAN_MENU = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "📅 Hari Ini", callback_data: "action_ringkasan_hari" },
+        { text: "📆 Minggu Ini", callback_data: "action_ringkasan_minggu" },
+      ],
+      [
+        { text: "📅 Bulan Ini", callback_data: "action_ringkasan_bulan" },
+      ],
+      [
+        { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
+      ],
+    ],
+  },
+};
+
+const BUDGET_MENU_FULL = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "📊 Cek Status Budget", callback_data: "action_budget" },
+        { text: "➕ Set Budget Kategori", callback_data: "action_budget_set_menu" },
+      ],
+      [
+        { text: "🗑️ Hapus Budget Kategori", callback_data: "action_budget_delete_menu" },
       ],
       [
         { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
@@ -162,7 +214,112 @@ const BUDGET_SELECT_MENU = {
         { text: "📌 Lainnya", callback_data: "set_bud_Lainnya" },
       ],
       [
-        { text: "◀ Kembali ke Budget", callback_data: "action_budget" },
+        { text: "◀ Kembali ke Budget", callback_data: "action_budget_menu" },
+      ],
+    ],
+  },
+};
+
+const BUDGET_DELETE_MENU = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "🍔 Makanan", callback_data: "del_bud_Makanan" },
+        { text: "🚗 Transportasi", callback_data: "del_bud_Transportasi" },
+      ],
+      [
+        { text: "🛍️ Belanja", callback_data: "del_bud_Belanja" },
+        { text: "📱 Tagihan", callback_data: "del_bud_Tagihan" },
+      ],
+      [
+        { text: "🎮 Hiburan", callback_data: "del_bud_Hiburan" },
+        { text: "💊 Kesehatan", callback_data: "del_bud_Kesehatan" },
+      ],
+      [
+        { text: "📚 Pendidikan", callback_data: "del_bud_Pendidikan" },
+        { text: "📌 Lainnya", callback_data: "del_bud_Lainnya" },
+      ],
+      [
+        { text: "◀ Kembali ke Budget", callback_data: "action_budget_menu" },
+      ],
+    ],
+  },
+};
+
+const RIWAYAT_MENU = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "📋 10 Terakhir", callback_data: "action_riwayat" },
+        { text: "🔍 Filter per Kategori", callback_data: "action_filter_cat" },
+      ],
+      [
+        { text: "🗑️ Hapus Terakhir", callback_data: "action_hapus" },
+        { text: "📤 Export CSV", callback_data: "action_export" },
+      ],
+      [
+        { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
+      ],
+    ],
+  },
+};
+
+const FILTER_CAT_MENU = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "🍔 Makanan", callback_data: "flt_cat_Makanan" },
+        { text: "🚗 Transportasi", callback_data: "flt_cat_Transportasi" },
+      ],
+      [
+        { text: "🛍️ Belanja", callback_data: "flt_cat_Belanja" },
+        { text: "📱 Tagihan", callback_data: "flt_cat_Tagihan" },
+      ],
+      [
+        { text: "🎮 Hiburan", callback_data: "flt_cat_Hiburan" },
+        { text: "💊 Kesehatan", callback_data: "flt_cat_Kesehatan" },
+      ],
+      [
+        { text: "📚 Pendidikan", callback_data: "flt_cat_Pendidikan" },
+        { text: "📌 Lainnya", callback_data: "flt_cat_Lainnya" },
+      ],
+      [
+        { text: "◀ Kembali ke Riwayat", callback_data: "action_riwayat_menu" },
+      ],
+    ],
+  },
+};
+
+const PENGATURAN_MENU = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "🔔 Pengingat & Notif", callback_data: "action_settings" },
+        { text: "🔗 Hubungkan Dashboard", callback_data: "action_link_dashboard" },
+      ],
+      [
+        { text: "👤 Info Profil", callback_data: "action_profil" },
+      ],
+      [
+        { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
+      ],
+    ],
+  },
+};
+
+const BANTUAN_MENU = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "📝 Format Catat", callback_data: "help_format" },
+        { text: "💡 Shorthand Nominal", callback_data: "help_shorthand" },
+      ],
+      [
+        { text: "⌨️ Daftar Perintah", callback_data: "help_commands" },
+        { text: "ℹ️ Tentang KasLeo", callback_data: "help_about" },
+      ],
+      [
+        { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
       ],
     ],
   },
@@ -188,7 +345,7 @@ const SETTINGS_MENU = (settings) => {
           { text: settings.monthlyReport ? "📋 Bulanan: ✅" : "📋 Bulanan: ❌", callback_data: "set_rem_monthly" },
         ],
         [
-          { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
+          { text: "◀ Kembali", callback_data: "action_pengaturan_menu" },
         ],
       ],
     },
@@ -372,12 +529,20 @@ bot.on("callback_query", async (callbackQuery) => {
 
   // 1. Navigation Actions
   if (data === "action_menu") {
-    clearSession(userId);
+    clearSession(telegramId);
     bot.editMessageText("🎛️ *Menu Utama Keuangan:*", {
       chat_id: msg.chat.id,
       message_id: msg.message_id,
       parse_mode: "Markdown",
       ...MAIN_MENU,
+    });
+  } else if (data === "action_catat") {
+    clearSession(telegramId);
+    bot.editMessageText("📝 *Pilih Jenis Transaksi:*", {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...CATAT_MENU,
     });
   } else if (data === "guide_expense") {
     session.mode = "awaiting_custom_expense";
@@ -407,7 +572,104 @@ bot.on("callback_query", async (callbackQuery) => {
         ...CATEGORY_MENU_INCOME,
       }
     );
-  } else if (data === "action_ringkasan") {
+  } else if (data === "action_ringkasan_menu") {
+    bot.editMessageText("📊 *Pilih Periode Ringkasan Keuangan:*", {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...RINGKASAN_MENU,
+    });
+  } else if (data === "action_ringkasan_hari") {
+    const rows = await getAllTransactions(dbUserId);
+    const today = new Date().toISOString().slice(0, 10);
+
+    let income = 0;
+    let expense = 0;
+    const byCategory = {};
+
+    for (const [date, type, category, amount] of rows) {
+      if (date !== today) continue;
+      const amt = Number(amount) || 0;
+      if (type === "Income") income += amt;
+      else {
+        expense += amt;
+        byCategory[category] = (byCategory[category] || 0) + amt;
+      }
+    }
+
+    const catLines = Object.entries(byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .map(([c, v]) => `  - ${c}: *${formatRupiah(v)}*`)
+      .join("\n");
+
+    const responseMsg = [
+      `📅 *Ringkasan Hari Ini (${today})*\n`,
+      `• Pemasukan: *${formatRupiah(income)}*`,
+      `• Pengeluaran: *${formatRupiah(expense)}*`,
+      `• Selisih Saldo: *${formatRupiah(income - expense)}*\n`,
+      `📈 *Rincian per Kategori:*`,
+      catLines || "  _(belum ada pengeluaran)_"
+    ].join("\n");
+
+    const backKeyboard = {
+      reply_markup: {
+        inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_ringkasan_menu" }]]
+      }
+    };
+
+    bot.editMessageText(responseMsg, {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...backKeyboard
+    });
+  } else if (data === "action_ringkasan_minggu") {
+    const rows = await getAllTransactions(dbUserId);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const limitDate = sevenDaysAgo.toISOString().slice(0, 10);
+
+    let income = 0;
+    let expense = 0;
+    const byCategory = {};
+
+    for (const [date, type, category, amount] of rows) {
+      if (!date || date < limitDate) continue;
+      const amt = Number(amount) || 0;
+      if (type === "Income") income += amt;
+      else {
+        expense += amt;
+        byCategory[category] = (byCategory[category] || 0) + amt;
+      }
+    }
+
+    const catLines = Object.entries(byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .map(([c, v]) => `  - ${c}: *${formatRupiah(v)}*`)
+      .join("\n");
+
+    const responseMsg = [
+      `📆 *Ringkasan Minggu Ini (7 Hari Terakhir)*\n`,
+      `• Pemasukan: *${formatRupiah(income)}*`,
+      `• Pengeluaran: *${formatRupiah(expense)}*`,
+      `• Selisih Saldo: *${formatRupiah(income - expense)}*\n`,
+      `📈 *Rincian per Kategori:*`,
+      catLines || "  _(belum ada pengeluaran)_"
+    ].join("\n");
+
+    const backKeyboard = {
+      reply_markup: {
+        inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_ringkasan_menu" }]]
+      }
+    };
+
+    bot.editMessageText(responseMsg, {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...backKeyboard
+    });
+  } else if (data === "action_ringkasan" || data === "action_ringkasan_bulan") {
     const rows = await getAllTransactions(dbUserId);
     const thisMonth = new Date().toISOString().slice(0, 7);
 
@@ -441,7 +703,7 @@ bot.on("callback_query", async (callbackQuery) => {
 
     const backKeyboard = {
       reply_markup: {
-        inline_keyboard: [[{ text: "◀ Kembali ke Menu", callback_data: "action_menu" }]]
+        inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_ringkasan_menu" }]]
       }
     };
 
@@ -450,6 +712,13 @@ bot.on("callback_query", async (callbackQuery) => {
       message_id: msg.message_id,
       parse_mode: "Markdown",
       ...backKeyboard
+    });
+  } else if (data === "action_budget_menu") {
+    bot.editMessageText("💰 *Menu Budgeting:*", {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...BUDGET_MENU_FULL
     });
   } else if (data === "action_budget") {
     const status = await getBudgetStatus(dbUserId);
@@ -476,7 +745,7 @@ bot.on("callback_query", async (callbackQuery) => {
       reply_markup: {
         inline_keyboard: [
           [{ text: "➕ Set Budget Kategori", callback_data: "action_budget_set_menu" }],
-          [{ text: "◀ Kembali ke Menu", callback_data: "action_menu" }]
+          [{ text: "◀ Kembali ke Budget", callback_data: "action_budget_menu" }]
         ]
       }
     };
@@ -493,6 +762,20 @@ bot.on("callback_query", async (callbackQuery) => {
       message_id: msg.message_id,
       parse_mode: "Markdown",
       ...BUDGET_SELECT_MENU
+    });
+  } else if (data === "action_budget_delete_menu") {
+    bot.editMessageText("🗑️ *Pilih kategori budget yang ingin dihapus:*", {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...BUDGET_DELETE_MENU
+    });
+  } else if (data === "action_riwayat_menu") {
+    bot.editMessageText("📋 *Pilihan Riwayat Transaksi:*", {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...RIWAYAT_MENU
     });
   } else if (data === "action_riwayat") {
     const txs = await getAllTransactions(dbUserId);
@@ -511,7 +794,7 @@ bot.on("callback_query", async (callbackQuery) => {
 
     const backKeyboard = {
       reply_markup: {
-        inline_keyboard: [[{ text: "◀ Kembali ke Menu", callback_data: "action_menu" }]]
+        inline_keyboard: [[{ text: "◀ Kembali ke Riwayat", callback_data: "action_riwayat_menu" }]]
       }
     };
 
@@ -520,6 +803,13 @@ bot.on("callback_query", async (callbackQuery) => {
       message_id: msg.message_id,
       parse_mode: "Markdown",
       ...backKeyboard
+    });
+  } else if (data === "action_filter_cat") {
+    bot.editMessageText("🔍 *Pilih kategori untuk memfilter riwayat:*", {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...FILTER_CAT_MENU
     });
   } else if (data === "action_hapus") {
     const last = await getLastTransaction(dbUserId);
@@ -534,7 +824,7 @@ bot.on("callback_query", async (callbackQuery) => {
         inline_keyboard: [
           [
             { text: "🗑️ Ya, Hapus", callback_data: "action_confirm_delete" },
-            { text: "❌ Batal", callback_data: "action_menu" }
+            { text: "❌ Batal", callback_data: "action_riwayat_menu" }
           ]
         ]
       }
@@ -564,7 +854,7 @@ bot.on("callback_query", async (callbackQuery) => {
           chat_id: msg.chat.id,
           message_id: msg.message_id,
           parse_mode: "Markdown",
-          ...MAIN_MENU
+          ...RIWAYAT_MENU
         }
       );
     } else {
@@ -572,9 +862,16 @@ bot.on("callback_query", async (callbackQuery) => {
         chat_id: msg.chat.id,
         message_id: msg.message_id,
         parse_mode: "Markdown",
-        ...MAIN_MENU
+        ...RIWAYAT_MENU
       });
     }
+  } else if (data === "action_pengaturan_menu") {
+    bot.editMessageText("⚙️ *Pengaturan & Info Akun:*", {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...PENGATURAN_MENU
+    });
   } else if (data === "action_settings") {
     const settings = getSettings();
     bot.editMessageText("⚙️ *Pengaturan Pengingat & Notifikasi:*", {
@@ -583,22 +880,13 @@ bot.on("callback_query", async (callbackQuery) => {
       parse_mode: "Markdown",
       ...SETTINGS_MENU(settings)
     });
-  } else if (data === "action_help") {
-    bot.editMessageText(
-      `❓ *Bantuan Catat Kas:* \n\n` +
-      `Kamu bisa mencatat langsung lewat chat:\n` +
-      `• Contoh: \`kopi 25rb\` (pengeluaran)\n` +
-      `• Contoh: \`masuk 2.5jt freelance\` (pemasukan)\n\n` +
-      `Gunakan menu tombol untuk mengecek ringkasan, riwayat, budget bulanan, hapus transaksi terakhir, atau mengubah jadwal pengingat.`,
-      {
-        chat_id: msg.chat.id,
-        message_id: msg.message_id,
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [[{ text: "◀ Kembali ke Menu", callback_data: "action_menu" }]]
-        }
-      }
-    );
+  } else if (data === "action_bantuan_menu") {
+    bot.editMessageText("❓ *Pilih Topik Bantuan:*", {
+      chat_id: msg.chat.id,
+      message_id: msg.message_id,
+      parse_mode: "Markdown",
+      ...BANTUAN_MENU
+    });
   } else if (data === "action_dismiss_reminder") {
     bot.deleteMessage(msg.chat.id, msg.message_id);
     bot.sendMessage(msg.chat.id, "Okey, semangat mencatat keuangannya! 💪");
@@ -733,6 +1021,183 @@ bot.on("callback_query", async (callbackQuery) => {
       parse_mode: "Markdown",
       ...DAYS_MENU(settings)
     });
+  } else if (data.startsWith("del_bud_")) {
+    const cat = data.replace("del_bud_", "");
+    try {
+      await deleteBudget(dbUserId, cat);
+      bot.editMessageText(
+        `🗑️ *Budget kategori ${cat} berhasil dihapus!*\n\n` +
+        `Ketik /menu untuk kembali ke menu utama.`,
+        {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ text: "◀ Kembali ke Budget", callback_data: "action_budget_menu" }]]
+          }
+        }
+      );
+    } catch (err) {
+      bot.sendMessage(msg.chat.id, `❌ Gagal menghapus budget: ${err.message}`);
+    }
+  } else if (data.startsWith("flt_cat_")) {
+    const cat = data.replace("flt_cat_", "");
+    try {
+      const txs = await getTransactionsByCategory(dbUserId, cat);
+      const lines = txs.map((t, idx) => {
+        const typeSign = t.type === "Expense" ? "-" : "+";
+        const amountFormatted = formatRupiah(Number(t.amount) || 0);
+        return `${idx + 1}. *${t.category}* | ${t.note || "-"} | \`${typeSign}${amountFormatted}\` | _${t.date}_`;
+      }).join("\n");
+
+      const responseMsg = [
+        `🔍 *10 Transaksi Terakhir Kategori ${cat}:*\n`,
+        lines || "_(belum ada transaksi untuk kategori ini)_"
+      ].join("\n");
+
+      bot.editMessageText(responseMsg, {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_filter_cat" }]]
+        }
+      });
+    } catch (err) {
+      bot.sendMessage(msg.chat.id, `❌ Gagal memfilter riwayat: ${err.message}`);
+    }
+  } else if (data === "action_export") {
+    try {
+      const txs = await getTransactionsForExport(dbUserId);
+      let csvContent = "Tanggal,Tipe,Kategori,Jumlah,Keterangan\n";
+      for (const t of txs) {
+        const safeNote = (t.note || "").replace(/"/g, '""');
+        csvContent += `"${t.date}","${t.type}","${t.category}",${t.amount},"${safeNote}"\n`;
+      }
+      const csvBuffer = Buffer.from(csvContent, "utf-8");
+      await bot.sendDocument(msg.chat.id, csvBuffer, {
+        caption: "📊 Berikut adalah data riwayat transaksi kamu dalam format CSV."
+      }, {
+        filename: `riwayat_transaksi_${new Date().toISOString().slice(0, 10)}.csv`,
+        contentType: "text/csv"
+      });
+    } catch (err) {
+      bot.sendMessage(msg.chat.id, `❌ Gagal mengekspor data: ${err.message}`);
+    }
+  } else if (data === "action_link_dashboard") {
+    const loadingMsg = await bot.sendMessage(msg.chat.id, "🔗 *Membuat kode penghubung...*", { parse_mode: "Markdown" });
+    try {
+      const telegramName = callbackQuery.from.username || callbackQuery.from.first_name || "User";
+      const code = await createLinkCode(telegramId, telegramName);
+      await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
+      await bot.sendMessage(
+        msg.chat.id,
+        `🔑 *Kode Penghubung Siap!*\n\n` +
+        `Masukkan kode berikut di menu **Pengaturan Profil** dashboard web kamu:\n\n` +
+        `*${code}*\n\n` +
+        `_Kode ini hanya berlaku selama 10 menit._`,
+        { parse_mode: "Markdown" }
+      );
+    } catch (err) {
+      try {
+        await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
+      } catch (e) {}
+      await bot.sendMessage(msg.chat.id, `❌ *Gagal membuat kode:*\n${err.message}`, { parse_mode: "Markdown" });
+    }
+  } else if (data === "action_profil") {
+    try {
+      const profile = await getProfileInfo(dbUserId);
+      const name = profile?.display_name || "Tidak Diketahui";
+      const tgId = profile?.telegram_id || telegramId;
+      bot.editMessageText(
+        `👤 *Informasi Profil Akun Terhubung:*\n\n` +
+        `• Nama Akun: *${name}*\n` +
+        `• ID Telegram: \`${tgId}\`\n` +
+        `• Status Koneksi: *Terhubung* ✅\n\n` +
+        `Akun kamu telah terintegrasi dengan database & dashboard web secara penuh.`,
+        {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_pengaturan_menu" }]]
+          }
+        }
+      );
+    } catch (err) {
+      bot.sendMessage(msg.chat.id, `❌ Gagal memuat profil: ${err.message}`);
+    }
+  } else if (data === "help_format") {
+    bot.editMessageText(
+      `📝 *Bantuan: Format Pencatatan*\n\n` +
+      `Kamu bisa mencatat transaksi langsung dengan mengetik pesan biasa di chat:\n\n` +
+      `• *Pengeluaran:* [keterangan] [nominal]\n` +
+      `  Contoh: \`kopi 25rb\`, \`makan siang 35k\`, \`20000 parkir\`\n\n` +
+      `• *Pemasukan:* [keterangan] [nominal] masuk\n` +
+      `  Contoh: \`gaji 5jt masuk\`, \`freelance 1.2jt masuk\`\n\n` +
+      `💡 *Kategori Otomatis*: Bot akan menebak kategori yang paling cocok (Makanan, Belanja, Hiburan, dll) secara pintar.`,
+      {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_bantuan_menu" }]]
+        }
+      }
+    );
+  } else if (data === "help_shorthand") {
+    bot.editMessageText(
+      `💡 *Bantuan: Shorthand Nominal*\n\n` +
+      `Untuk mempercepat pencatatan, kamu bisa menggunakan shorthand (singkatan) nominal berikut:\n\n` +
+      `• \`k\` atau \`rb\` atau \`ribu\` $\rightarrow$ Ribuan (x1.000)\n` +
+      `  Contoh: \`15k\` atau \`15rb\` $\rightarrow$ \`15.000\`\n\n` +
+      `• \`jt\` atau \`juta\` $\rightarrow$ Jutaan (x1.000.000)\n` +
+      `  Contoh: \`2.5jt\` atau \`2.5juta\` $\rightarrow$ \`2.500.000\``,
+      {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_bantuan_menu" }]]
+        }
+      }
+    );
+  } else if (data === "help_commands") {
+    bot.editMessageText(
+      `⌨️ *Bantuan: Daftar Perintah (Commands)*\n\n` +
+      `Berikut adalah daftar perintah slash yang didukung bot:\n\n` +
+      `• /start $\rightarrow$ Memulai bot dan menampilkan sambutan\n` +
+      `• /menu $\rightarrow$ Membuka Menu Utama Keuangan\n` +
+      `• /link $\rightarrow$ Membuat kode penghubung akun ke dashboard\n` +
+      `• /help $\rightarrow$ Menampilkan panduan cepat`,
+      {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_bantuan_menu" }]]
+        }
+      }
+    );
+  } else if (data === "help_about") {
+    bot.editMessageText(
+      `ℹ️ *Tentang KasLeo*\n\n` +
+      `*KasLeo Bot* v2.0.0\n` +
+      `Aplikasi asisten pencatat keuangan pribadi terintegrasi database Cloud & Dashboard interaktif Next.js.\n\n` +
+      `*Fitur Utama:*\n` +
+      `• Pencatatan transaksi kilat parser teks pintar.\n` +
+      `• Integrasi instan dengan dashboard web pribadi.\n` +
+      `• Sistem kuota/budget bulanan dengan notifikasi limit.\n` +
+      `• Ekspor riwayat keuangan mandiri via Telegram.`,
+      {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[{ text: "◀ Kembali", callback_data: "action_bantuan_menu" }]]
+        }
+      }
+    );
   }
 });
 
@@ -915,7 +1380,7 @@ bot.on("message", async (msg) => {
 
     if (!category) {
       bot.sendMessage(msg.chat.id, "❌ Terjadi kesalahan sesi. Silakan coba atur dari menu lagi.");
-      clearSession(userId);
+      clearSession(telegramId);
       return;
     }
 
