@@ -416,7 +416,7 @@ const DAYS_MENU = (settings) => {
 };
 
 // Command start & help
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, async (msg) => {
   console.log(`📥 Menerima perintah /start dari Telegram ID: ${msg.from.id}`);
   if (!isOwner(msg)) {
     console.log(`⚠️ User bukan owner! Owner ID: ${OWNER_ID}, User ID: ${msg.from.id}`);
@@ -424,16 +424,8 @@ bot.onText(/\/start/, (msg) => {
   }
   clearSession(msg.from.id);
   
-  const mergedMarkup = {
-    reply_markup: {
-      inline_keyboard: MAIN_MENU.reply_markup.inline_keyboard,
-      keyboard: REPLY_KEYBOARD.reply_markup.keyboard,
-      resize_keyboard: true,
-      one_time_keyboard: false
-    }
-  };
-
-  bot.sendMessage(
+  // 1. Send greeting and establish the bottom reply keyboard
+  await bot.sendMessage(
     msg.chat.id,
     `Halo *${msg.from.first_name || "Owner"}*! 👋\n\n` +
     `Aku bot pencatat keuangan pribadimu yang terkoneksi langsung dengan database & Dashboard.\n\n` +
@@ -442,8 +434,11 @@ bot.onText(/\/start/, (msg) => {
     `• \`beli sepatu 350k\`\n` +
     `• \`masuk 5jt gaji bulanan\`\n\n` +
     `Gunakan keyboard menu cepat di bawah ini untuk navigasi cepat tanpa mengetik!`,
-    { parse_mode: "Markdown", ...mergedMarkup }
+    { parse_mode: "Markdown", ...REPLY_KEYBOARD }
   );
+
+  // 2. Send the actual Menu Utama inline buttons
+  bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
 });
 
 bot.onText(/\/menu/, (msg) => {
@@ -454,16 +449,8 @@ bot.onText(/\/menu/, (msg) => {
   }
   clearSession(msg.from.id);
 
-  const mergedMarkup = {
-    reply_markup: {
-      inline_keyboard: MAIN_MENU.reply_markup.inline_keyboard,
-      keyboard: REPLY_KEYBOARD.reply_markup.keyboard,
-      resize_keyboard: true,
-      one_time_keyboard: false
-    }
-  };
-
-  bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...mergedMarkup });
+  // Send the Menu Utama inline buttons directly (it will render the buttons on the message)
+  bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
 });
 
 bot.onText(/\/link/, async (msg) => {
