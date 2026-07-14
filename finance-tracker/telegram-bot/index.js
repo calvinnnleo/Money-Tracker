@@ -405,7 +405,11 @@ const DAYS_MENU = (settings) => {
 
 // Command start & help
 bot.onText(/\/start/, (msg) => {
-  if (!isOwner(msg)) return;
+  console.log(`📥 Menerima perintah /start dari Telegram ID: ${msg.from.id}`);
+  if (!isOwner(msg)) {
+    console.log(`⚠️ User bukan owner! Owner ID: ${OWNER_ID}, User ID: ${msg.from.id}`);
+    return;
+  }
   clearSession(msg.from.id);
   
   const mergedMarkup = {
@@ -431,7 +435,11 @@ bot.onText(/\/start/, (msg) => {
 });
 
 bot.onText(/\/menu/, (msg) => {
-  if (!isOwner(msg)) return;
+  console.log(`📥 Menerima perintah /menu dari Telegram ID: ${msg.from.id}`);
+  if (!isOwner(msg)) {
+    console.log(`⚠️ User bukan owner! Owner ID: ${OWNER_ID}, User ID: ${msg.from.id}`);
+    return;
+  }
   clearSession(msg.from.id);
 
   const mergedMarkup = {
