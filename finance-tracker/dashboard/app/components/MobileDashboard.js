@@ -2070,35 +2070,36 @@ export default function MobileDashboard({
               {/* Telegram Integration */}
               <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
                 <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Integrasi Telegram</span>
-                {telegramId ? (
-                  <div className="text-xs font-bold text-green flex items-center gap-1.5">
+                {telegramId && (
+                  <div className="text-xs font-bold text-green flex items-center gap-1.5 mb-1">
                     <span>✅ Terhubung ID: {String(telegramId)}</span>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-[10px] text-secondary dark:text-zinc-400 leading-normal">
-                      Ketik <code className="px-1 py-0.5 rounded bg-[#E5E5EA] dark:bg-zinc-800 text-violet font-mono text-[9px]">/link</code> di bot, lalu masukkan kodenya di bawah ini:
-                    </p>
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        placeholder="XXXXXX"
-                        value={telegramCode}
-                        onChange={(e) => setTelegramCode(e.target.value.toUpperCase())}
-                        maxLength={6}
-                        className="flex-1 bg-surface dark:bg-zinc-950 border border-separator/35 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-center text-xs font-black placeholder-secondary/70 uppercase tracking-widest text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
-                      />
-                      <button
-                        type="button"
-                        disabled={telegramLoading}
-                        onClick={handleLinkTelegram}
-                        className="px-3 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
-                      >
-                        {telegramLoading ? "..." : "Link"}
-                      </button>
-                    </div>
-                  </div>
                 )}
+                <div className="space-y-2">
+                  <p className="text-[10px] text-secondary dark:text-zinc-400 leading-normal">
+                    {telegramId ? "Ingin mengubah akun Telegram? Ketik " : "Ketik "}
+                    <code className="px-1 py-0.5 rounded bg-[#E5E5EA] dark:bg-zinc-800 text-violet font-mono text-[9px]">/link</code>
+                    {telegramId ? " di bot baru, lalu masukkan kodenya:" : " di bot, lalu masukkan kodenya di bawah ini:"}
+                  </p>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="XXXXXX"
+                      value={telegramCode}
+                      onChange={(e) => setTelegramCode(e.target.value.toUpperCase())}
+                      maxLength={6}
+                      className="flex-1 bg-surface dark:bg-zinc-950 border border-separator/35 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-center text-xs font-black placeholder-secondary/70 uppercase tracking-widest text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
+                    />
+                    <button
+                      type="button"
+                      disabled={telegramLoading}
+                      onClick={handleLinkTelegram}
+                      className="px-3 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
+                    >
+                      {telegramLoading ? "..." : "Link"}
+                    </button>
+                  </div>
+                </div>
                 {telegramStatus && (
                   <p className={`text-[9px] font-bold leading-normal mt-1 ${telegramStatus.type === "success" ? "text-green" : "text-red"}`}>
                     {telegramStatus.msg}
