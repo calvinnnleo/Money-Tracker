@@ -1156,10 +1156,10 @@ bot.on("callback_query", async (callbackQuery) => {
     bot.editMessageText(
       `💡 *Bantuan: Shorthand Nominal*\n\n` +
       `Untuk mempercepat pencatatan, kamu bisa menggunakan shorthand (singkatan) nominal berikut:\n\n` +
-      `• \`k\` atau \`rb\` atau \`ribu\` $\rightarrow$ Ribuan (x1.000)\n` +
-      `  Contoh: \`15k\` atau \`15rb\` $\rightarrow$ \`15.000\`\n\n` +
-      `• \`jt\` atau \`juta\` $\rightarrow$ Jutaan (x1.000.000)\n` +
-      `  Contoh: \`2.5jt\` atau \`2.5juta\` $\rightarrow$ \`2.500.000\``,
+      `• \`k\` atau \`rb\` atau \`ribu\` → Ribuan (x1.000)\n` +
+      `  Contoh: \`15k\` atau \`15rb\` → \`15.000\`\n\n` +
+      `• \`jt\` atau \`juta\` → Jutaan (x1.000.000)\n` +
+      `  Contoh: \`2.5jt\` atau \`2.5juta\` → \`2.500.000\``,
       {
         chat_id: msg.chat.id,
         message_id: msg.message_id,
@@ -1173,10 +1173,10 @@ bot.on("callback_query", async (callbackQuery) => {
     bot.editMessageText(
       `⌨️ *Bantuan: Daftar Perintah (Commands)*\n\n` +
       `Berikut adalah daftar perintah slash yang didukung bot:\n\n` +
-      `• /start $\rightarrow$ Memulai bot dan menampilkan sambutan\n` +
-      `• /menu $\rightarrow$ Membuka Menu Utama Keuangan\n` +
-      `• /link $\rightarrow$ Membuat kode penghubung akun ke dashboard\n` +
-      `• /help $\rightarrow$ Menampilkan panduan cepat`,
+      `• /start → Memulai bot dan menampilkan sambutan\n` +
+      `• /menu → Membuka Menu Utama Keuangan\n` +
+      `• /link → Membuat kode penghubung akun ke dashboard\n` +
+      `• /help → Menampilkan panduan cepat`,
       {
         chat_id: msg.chat.id,
         message_id: msg.message_id,
