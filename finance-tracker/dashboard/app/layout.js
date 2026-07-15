@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "KasLeo — Buku Kas Digital",
-  description: "Dashboard keuangan pribadi berbasis Google Sheets & Telegram Bot",
+  description: "Dashboard keuangan pribadi dengan Telegram Bot — KasLeo",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

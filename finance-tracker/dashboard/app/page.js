@@ -211,7 +211,7 @@ export default function Page() {
         body: JSON.stringify({ category, budget: amount }),
       });
     } catch (err) {
-      console.error("Gagal menyimpan budget ke Sheets:", err.message);
+      console.error("Gagal menyimpan budget ke database:", err.message);
     }
   };
 
@@ -227,7 +227,7 @@ export default function Page() {
         method: "DELETE",
       });
     } catch (err) {
-      console.error("Gagal menghapus budget dari Sheets:", err.message);
+      console.error("Gagal menghapus budget dari database:", err.message);
     }
   };
 

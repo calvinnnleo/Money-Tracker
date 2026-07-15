@@ -75,7 +75,7 @@ export async function GET(request) {
   headerRow.fill = {
     type: "pattern",
     pattern: "solid",
-    fgColor: { argb: "FF007AFF" },
+    fgColor: { argb: "FFAF52DE" },
   };
   headerRow.alignment = { vertical: "middle", horizontal: "left" };
   headerRow.getCell("amount").alignment = { vertical: "middle", horizontal: "right" };

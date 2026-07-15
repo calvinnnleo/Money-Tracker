@@ -58,9 +58,6 @@ try {
   console.error("❌ Gagal memulai bot:", err.message);
 }
 
-function isOwner(msg) {
-  return String(msg.from.id) === OWNER_ID;
-}
 
 function formatRupiah(n) {
   return "Rp" + Math.round(n).toLocaleString("id-ID");
