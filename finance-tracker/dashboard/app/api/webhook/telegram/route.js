@@ -35,28 +35,30 @@ function getSafeDashboardUrl() {
   return url;
 }
 
-// Keyboard Menu Definitions
-const MAIN_MENU = {
-  reply_markup: {
-    inline_keyboard: [
-      [
-        { text: "📝 Catat Transaksi", callback_data: "action_catat" },
-        { text: "📊 Ringkasan", callback_data: "action_ringkasan_menu" },
-      ],
-      [
-        { text: "💰 Budget", callback_data: "action_budget_menu" },
-        { text: "📋 Riwayat", callback_data: "action_riwayat_menu" },
-      ],
-      [
-        { text: "⚙️ Pengaturan", callback_data: "action_pengaturan_menu" },
-        { text: "❓ Bantuan", callback_data: "action_bantuan_menu" },
-      ],
-      [
-        { text: "📈 Buka Dashboard", url: getSafeDashboardUrl() },
-      ],
+// Keyboard Menu Definitions — MAIN_MENU is a function to dynamically include Dashboard button
+function getMainMenu() {
+  const dashboardUrl = process.env.DASHBOARD_URL || "";
+  const rows = [
+    [
+      { text: "📝 Catat Transaksi", callback_data: "action_catat" },
+      { text: "📊 Ringkasan", callback_data: "action_ringkasan_menu" },
     ],
-  },
-};
+    [
+      { text: "💰 Budget", callback_data: "action_budget_menu" },
+      { text: "📋 Riwayat", callback_data: "action_riwayat_menu" },
+    ],
+    [
+      { text: "⚙️ Pengaturan", callback_data: "action_pengaturan_menu" },
+      { text: "❓ Bantuan", callback_data: "action_bantuan_menu" },
+    ],
+  ];
+
+  if (dashboardUrl) {
+    rows.push([{ text: "📈 Buka Dashboard", url: dashboardUrl }]);
+  }
+
+  return { reply_markup: { inline_keyboard: rows } };
+}
 
 const REPLY_KEYBOARD = {
   reply_markup: {
@@ -387,7 +389,7 @@ async function processTelegramUpdate(update) {
           { parse_mode: "Markdown", ...REPLY_KEYBOARD }
         );
 
-        await bot.sendMessage(chatId, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
+        await bot.sendMessage(chatId, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...getMainMenu() });
         return;
       }
 
@@ -404,7 +406,7 @@ async function processTelegramUpdate(update) {
           return;
         }
 
-        await bot.sendMessage(chatId, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
+        await bot.sendMessage(chatId, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...getMainMenu() });
         return;
       }
 
@@ -471,7 +473,7 @@ async function processTelegramUpdate(update) {
 
     if (text === "🎛️ Menu Utama") {
       clearSession(telegramId);
-      await bot.sendMessage(chatId, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
+      await bot.sendMessage(chatId, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...getMainMenu() });
       return;
     }
     if (text === "📊 Ringkasan") {
@@ -659,7 +661,7 @@ async function processTelegramUpdate(update) {
         chat_id: chatId,
         message_id: messageId,
         parse_mode: "Markdown",
-        ...MAIN_MENU,
+        ...getMainMenu(),
       });
     } else if (data === "action_catat") {
       clearSession(telegramId);
