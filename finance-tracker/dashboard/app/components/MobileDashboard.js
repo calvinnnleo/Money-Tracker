@@ -255,6 +255,7 @@ export default function MobileDashboard({
   changeMonth,
   onAddBudget,
   onDeleteBudget,
+  onDeleteTransaction,
 
   // Settings, profiles, and transactions props
   userName,
@@ -270,6 +271,7 @@ export default function MobileDashboard({
   onRefreshProfile,
 }) {
   const [activeTab, setActiveTab] = useState("home");
+  const [selectedTxForDetail, setSelectedTxForDetail] = useState(null);
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -925,7 +927,8 @@ export default function MobileDashboard({
                       {selectedDateTxs.map((t, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center justify-between p-3.5 bg-white border border-separator/20 rounded-2xl shadow-sm"
+                          onClick={() => setSelectedTxForDetail(t)}
+                          className="flex items-center justify-between p-3.5 bg-white border border-separator/20 rounded-2xl shadow-sm cursor-pointer active:bg-bg/40 transition hover:border-separator/40 hover:shadow-sm"
                         >
                           <div className="flex items-center gap-3">
                             <div
@@ -1230,7 +1233,8 @@ export default function MobileDashboard({
                         {txs.map((t, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center justify-between p-4 bg-surface active:bg-bg/40 transition card-interactive"
+                            onClick={() => setSelectedTxForDetail(t)}
+                            className="flex items-center justify-between p-4 bg-surface cursor-pointer active:bg-bg/40 transition hover:bg-bg/20 card-interactive"
                           >
                             <div className="flex items-center gap-3">
                               <div
@@ -2221,6 +2225,94 @@ export default function MobileDashboard({
               >
                 Tutup
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 6: Transaction Details with Delete option */}
+      {selectedTxForDetail && (
+        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-sm uppercase tracking-wider">Detail Transaksi</h3>
+              <button 
+                onClick={() => setSelectedTxForDetail(null)}
+                className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition"
+              >
+                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Category Icon and Name */}
+              <div className="flex items-center gap-3 bg-[#F2F2F7] dark:bg-zinc-900 p-3.5 rounded-2xl">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 flex items-center justify-center text-lg shadow-sm">
+                  {getCategoryEmoji(selectedTxForDetail.category)}
+                </div>
+                <div>
+                  <p className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider">Kategori</p>
+                  <p className="text-xs font-black text-ink dark:text-zinc-100">{selectedTxForDetail.category}</p>
+                </div>
+              </div>
+
+              {/* Detail Info */}
+              <div className="space-y-2.5 px-0.5">
+                <div>
+                  <span className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Catatan</span>
+                  <span className="text-xs font-bold text-ink dark:text-zinc-200">{selectedTxForDetail.note || "-"}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Nominal</span>
+                    <span className={`text-xs font-black ${selectedTxForDetail.type === "Expense" ? "text-red" : "text-green"}`}>
+                      {selectedTxForDetail.type === "Expense" ? "-" : "+"}
+                      {formatRupiah(selectedTxForDetail.amount)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Tipe</span>
+                    <span className="text-xs font-bold text-ink dark:text-zinc-200">
+                      {selectedTxForDetail.type === "Expense" ? "Pengeluaran 🔴" : "Pemasukan 🟢"}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Tanggal</span>
+                  <span className="text-xs font-bold text-ink dark:text-zinc-200">
+                    {new Date(selectedTxForDetail.date).toLocaleDateString("id-ID", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric"
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTxForDetail(null)}
+                  className="flex-1 py-3.5 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary dark:text-zinc-300 font-bold text-xs uppercase tracking-wider active:scale-95 transition"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Apakah kamu yakin ingin menghapus transaksi ini?")) {
+                      onDeleteTransaction(selectedTxForDetail.id);
+                      setSelectedTxForDetail(null);
+                    }
+                  }}
+                  className="flex-1 py-3.5 rounded-2xl bg-red hover:bg-red/90 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-md shadow-red/10 flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Hapus
+                </button>
+              </div>
             </div>
           </div>
         </div>

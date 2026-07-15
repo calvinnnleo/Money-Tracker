@@ -61,7 +61,7 @@ export async function getDbTransactions(userId) {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("transactions")
-    .select("date, type, category, amount, note, created_at")
+    .select("id, date, type, category, amount, note, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -73,13 +73,30 @@ export async function getDbTransactions(userId) {
 }
 
 export async function addDbTransaction(userId, { date, type, category, amount, note }) {
-  if (!supabase) return;
-  const { error } = await supabase
+  if (!supabase) return null;
+  const { data, error } = await supabase
     .from("transactions")
-    .insert([{ user_id: userId, date, type, category, amount, note }]);
+    .insert([{ user_id: userId, date, type, category, amount, note }])
+    .select()
+    .single();
 
   if (error) {
     console.error("Error adding transaction to Supabase:", error.message);
+    throw error;
+  }
+  return data;
+}
+
+export async function deleteDbTransaction(userId, transactionId) {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("transactions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", transactionId);
+
+  if (error) {
+    console.error("Error deleting transaction from Supabase:", error.message);
     throw error;
   }
 }

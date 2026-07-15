@@ -15,6 +15,8 @@ import {
   getTransactionsForExport,
   getProfileInfo,
   deleteBudget,
+  getRecentTransactions,
+  deleteTransactionById,
 } from "./db.js";
 import { getSession, setSession, clearSession } from "./session.js";
 import { checkBudgetAlert } from "./budget-alert.js";
@@ -268,9 +270,10 @@ const RIWAYAT_MENU = {
       ],
       [
         { text: "🗑️ Hapus Terakhir", callback_data: "action_hapus" },
-        { text: "📤 Export CSV", callback_data: "action_export" },
+        { text: "❌ Pilih & Hapus", callback_data: "action_pilih_hapus" },
       ],
       [
+        { text: "📤 Export CSV", callback_data: "action_export" },
         { text: "◀ Kembali ke Menu", callback_data: "action_menu" },
       ],
     ],
@@ -867,6 +870,107 @@ bot.on("callback_query", async (callbackQuery) => {
       );
     } else {
       bot.editMessageText("❌ Gagal menghapus transaksi.", {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        ...RIWAYAT_MENU
+      });
+    }
+  } else if (data === "action_pilih_hapus") {
+    try {
+      const recent = await getRecentTransactions(dbUserId, 5);
+      if (recent.length === 0) {
+        bot.editMessageText("📭 *Belum ada riwayat transaksi untuk dihapus.*", {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ text: "◀ Kembali ke Riwayat", callback_data: "action_riwayat_menu" }]]
+          }
+        });
+        return;
+      }
+
+      const buttons = recent.map((t) => {
+        // Find category emoji
+        const categoryEmoji = {
+          Makanan: "🍔", Transportasi: "🚗", Belanja: "🛍️", Tagihan: "📱",
+          Hiburan: "🎮", Kesehatan: "💊", Pendidikan: "📚", Investasi: "📈",
+          Donasi: "🎁", Gaji: "💰", Lainnya: "📌"
+        }[t.category] || "📌";
+
+        const sign = t.type === "Expense" ? "-" : "+";
+        const formattedAmount = formatRupiah(t.amount);
+        const text = `${categoryEmoji} ${t.note || t.category} (${sign}${formattedAmount})`;
+        return [{ text, callback_data: `action_del_prompt_${t.id}` }];
+      });
+
+      buttons.push([{ text: "◀ Kembali ke Riwayat", callback_data: "action_riwayat_menu" }]);
+
+      bot.editMessageText("❌ *Pilih Transaksi yang Ingin Dihapus:*", {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: buttons
+        }
+      });
+    } catch (err) {
+      bot.sendMessage(msg.chat.id, `❌ Gagal memuat daftar transaksi: ${err.message}`);
+    }
+  } else if (data.startsWith("action_del_prompt_")) {
+    const id = data.replace("action_del_prompt_", "");
+    try {
+      const recent = await getRecentTransactions(dbUserId, 10);
+      const target = recent.find((t) => String(t.id) === id);
+
+      if (!target) {
+        bot.editMessageText("❌ Transaksi tidak ditemukan atau sudah terhapus.", {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          parse_mode: "Markdown",
+          ...RIWAYAT_MENU
+        });
+        return;
+      }
+
+      const sign = target.type === "Expense" ? "-" : "+";
+      const detailMsg = 
+        `⚠️ *Konfirmasi Hapus Transaksi:* ⚠️\n\n` +
+        `• Kategori: *${target.category}*\n` +
+        `• Catatan: *${target.note || "-"}*\n` +
+        `• Jumlah: \`${sign}${formatRupiah(target.amount)}\`\n` +
+        `• Tanggal: _${target.date}_\n\n` +
+        `Apakah Anda yakin ingin menghapus transaksi di atas secara permanen?`;
+
+      bot.editMessageText(detailMsg, {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "🗑️ Ya, Hapus Permanen", callback_data: `action_del_confirm_${id}` },
+              { text: "❌ Batal", callback_data: "action_pilih_hapus" }
+            ]
+          ]
+        }
+      });
+    } catch (err) {
+      bot.sendMessage(msg.chat.id, `❌ Gagal mengambil detail transaksi: ${err.message}`);
+    }
+  } else if (data.startsWith("action_del_confirm_")) {
+    const id = data.replace("action_del_confirm_", "");
+    try {
+      await deleteTransactionById(dbUserId, id);
+      bot.editMessageText("✅ *Transaksi berhasil dihapus secara permanen!*", {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id,
+        parse_mode: "Markdown",
+        ...RIWAYAT_MENU
+      });
+    } catch (err) {
+      bot.editMessageText(`❌ *Gagal menghapus transaksi:* ${err.message}`, {
         chat_id: msg.chat.id,
         message_id: msg.message_id,
         parse_mode: "Markdown",

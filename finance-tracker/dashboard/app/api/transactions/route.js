@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { getDbTransactions, getDbBudgets, addDbTransaction, hasSupabaseConfig } from "../../../lib/supabase";
+import { getDbTransactions, getDbBudgets, addDbTransaction, deleteDbTransaction, hasSupabaseConfig } from "../../../lib/supabase";
 
 async function getAuthUser(cookieStore) {
   const supabase = createServerClient(
@@ -80,7 +80,32 @@ export async function POST(request) {
     }
 
     if (hasSupabaseConfig()) {
-      await addDbTransaction(user.id, { date, type, category, amount, note });
+      const newRow = await addDbTransaction(user.id, { date, type, category, amount, note });
+      return NextResponse.json({ success: true, transaction: newRow });
+    } else {
+      return NextResponse.json({ success: true, offline: true });
+    }
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  const { user } = await getAuthUser(cookies());
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing transaction id" }, { status: 400 });
+    }
+
+    if (hasSupabaseConfig()) {
+      await deleteDbTransaction(user.id, id);
       return NextResponse.json({ success: true });
     } else {
       return NextResponse.json({ success: true, offline: true });

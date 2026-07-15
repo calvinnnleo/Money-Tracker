@@ -238,3 +238,25 @@ export async function getProfileInfo(userId) {
   return data;
 }
 
+export async function getRecentTransactions(userId, limit = 5) {
+  const { data, error } = await client()
+    .from("transactions")
+    .select("id, date, type, category, amount, note, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function deleteTransactionById(userId, transactionId) {
+  const { error } = await client()
+    .from("transactions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", transactionId);
+
+  if (error) throw error;
+}
+

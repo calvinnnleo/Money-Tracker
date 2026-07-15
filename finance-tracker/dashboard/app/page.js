@@ -400,17 +400,47 @@ export default function Page() {
 
   // Add manual transactions directly from the dashboard
   const handleAddTransaction = async (newTx) => {
+    const tempId = "temp-" + Date.now();
+    const txWithTempId = { ...newTx, id: tempId };
+
     // Optimistic UI update
-    setLocalTransactions((prev) => [...prev, newTx]);
+    setLocalTransactions((prev) => [...prev, txWithTempId]);
 
     try {
-      await fetch("/api/transactions", {
+      const res = await fetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newTx),
       });
+      const resData = await res.json();
+      if (resData.success && resData.transaction) {
+        // Update temporary ID with actual database ID
+        setLocalTransactions((prev) =>
+          prev.map((t) => (t.id === tempId ? resData.transaction : t))
+        );
+      }
     } catch (err) {
-      console.error("Gagal menyimpan transaksi ke Sheets:", err.message);
+      console.error("Gagal menyimpan transaksi ke database:", err.message);
+    }
+  };
+
+  const handleDeleteTransaction = async (id) => {
+    // Optimistic UI update
+    setLocalTransactions((prev) => prev.filter((t) => t.id !== id));
+    setData((prev) => {
+      if (!prev || !prev.transactions) return prev;
+      return {
+        ...prev,
+        transactions: prev.transactions.filter((t) => t.id !== id),
+      };
+    });
+
+    try {
+      await fetch(`/api/transactions?id=${id}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.error("Gagal menghapus transaksi dari database:", err.message);
     }
   };
 
@@ -455,6 +485,7 @@ export default function Page() {
       changeMonth={changeMonth}
       onAddBudget={handleAddBudget}
       onDeleteBudget={handleDeleteBudget}
+      onDeleteTransaction={handleDeleteTransaction}
       
       // Profiles, settings and custom transaction support
       userName={userName}
