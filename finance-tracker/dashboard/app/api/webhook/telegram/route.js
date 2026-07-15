@@ -20,6 +20,7 @@ import {
 import { getSession, setSession, clearSession } from "./session";
 import { checkBudgetAlert } from "./budget-alert";
 import { parseMessage, parseNumberAndNote } from "./parser";
+import { scanReceipt } from "./ocr-scanner";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const OWNER_ID = String(process.env.TELEGRAM_OWNER_ID);
@@ -343,6 +344,80 @@ async function processTelegramUpdate(update) {
       text = "/" + text.slice(1);
     }
 
+    // 0. Handle photo messages (OCR Receipt Scanner)
+    if (message.photo && message.photo.length > 0) {
+      const dbUserId = await getUserIdByTelegramId(telegramId);
+      if (!dbUserId) {
+        await bot.sendMessage(
+          chatId,
+          "⚠️ *Bot belum terhubung dengan akun Dashboard!*\n\nKetik /link untuk menghubungkan akun terlebih dahulu.",
+          { parse_mode: "Markdown" }
+        );
+        return;
+      }
+
+      // Get highest resolution photo
+      const photoObj = message.photo[message.photo.length - 1];
+      const loadingMsg = await bot.sendMessage(chatId, "🔍 *Membaca struk...*\n_Mohon tunggu, AI sedang menganalisis gambarmu._", { parse_mode: "Markdown" });
+
+      try {
+        // Get direct file URL from Telegram
+        const fileInfo = await bot.getFile(photoObj.file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${token}/${fileInfo.file_path}`;
+
+        // Call OCR Vision AI
+        const ocrResult = await scanReceipt(fileUrl);
+
+        // Clean up loading message
+        await bot.deleteMessage(chatId, loadingMsg.message_id).catch(() => {});
+
+        if (!ocrResult.is_receipt) {
+          await bot.sendMessage(chatId, ocrResult.reply_message || "⚠️ Gambar tidak terdeteksi sebagai struk belanja. Coba kirim foto struk yang lebih jelas.", { parse_mode: "Markdown" });
+          return;
+        }
+
+        // Build preview message
+        const itemsList = ocrResult.items && ocrResult.items.length > 0
+          ? ocrResult.items.map(i => `  • ${i}`).join("\n")
+          : "  _(tidak terdeteksi)_";
+
+        const previewMsg = 
+          `🧾 *Hasil Baca Struk AI*\n\n` +
+          `🏪 Merchant: *${ocrResult.merchant_name || "Tidak diketahui"}*\n` +
+          `🏷️ Kategori: *${ocrResult.category || "Belanja"}*\n` +
+          `💰 Total: *${formatRupiah(ocrResult.total_amount || 0)}*\n` +
+          `📝 Catatan: _${ocrResult.note || "-"}_\n\n` +
+          `📋 Item terdeteksi:\n${itemsList}\n\n` +
+          `Apakah data di atas sudah benar?`;
+
+        // Store OCR result in session for confirmation
+        const session = getSession(telegramId);
+        session.mode = "awaiting_ocr_confirm";
+        session.tempData = {
+          amount: ocrResult.total_amount,
+          category: ocrResult.category || "Belanja",
+          note: ocrResult.note || ocrResult.merchant_name || "Belanja struk",
+          type: "Expense",
+        };
+
+        await bot.sendMessage(chatId, previewMsg, {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "✅ Simpan", callback_data: "ocr_confirm" },
+                { text: "❌ Batal", callback_data: "ocr_cancel" },
+              ]
+            ]
+          }
+        });
+      } catch (err) {
+        await bot.deleteMessage(chatId, loadingMsg.message_id).catch(() => {});
+        await bot.sendMessage(chatId, `❌ Gagal memproses struk: ${err.message}`);
+      }
+      return;
+    }
+
     // 1. Slash commands
     if (text.startsWith("/")) {
       if (text.startsWith("/start")) {
@@ -614,6 +689,70 @@ async function processTelegramUpdate(update) {
     await bot.answerCallbackQuery(callback_query.id);
 
     const dbUserId = await getUserIdByTelegramId(telegramId);
+    const session = getSession(telegramId);
+
+    // OCR Receipt confirmation handlers
+    if (data === "ocr_confirm") {
+      if (!session.tempData || session.mode !== "awaiting_ocr_confirm") {
+        await bot.editMessageText("❌ Sesi konfirmasi struk sudah kedaluwarsa. Kirim foto struk lagi ya!", {
+          chat_id: chatId, message_id: messageId, parse_mode: "Markdown"
+        });
+        return;
+      }
+
+      const { amount, category, note, type } = session.tempData;
+      const transaction = {
+        date: new Date().toISOString().slice(0, 10),
+        type,
+        category,
+        amount,
+        note,
+      };
+
+      try {
+        await addTransaction(dbUserId, transaction);
+        clearSession(telegramId);
+        await bot.editMessageText(
+          `✅ *Struk berhasil disimpan!*\n\n` +
+          `• Kategori: *${category}*\n` +
+          `• Nominal: *${formatRupiah(amount)}*\n` +
+          `• Catatan: _${note}_\n\n` +
+          `💡 _Terima kasih sudah pakai KasLeo OCR Scanner!_`,
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [[{ text: "🎛️ Menu Utama", callback_data: "action_menu" }]]
+            }
+          }
+        );
+        if (type === "Expense") {
+          await checkBudgetAlert(dbUserId, transaction, bot, chatId);
+        }
+      } catch (err) {
+        await bot.editMessageText(`❌ Gagal menyimpan transaksi struk: ${err.message}`, {
+          chat_id: chatId, message_id: messageId
+        });
+      }
+      return;
+    }
+
+    if (data === "ocr_cancel") {
+      clearSession(telegramId);
+      await bot.editMessageText(
+        "🗑️ *Transaksi struk dibatalkan.*\n\nKirim foto struk lagi jika ingin mencoba ulang.",
+        {
+          chat_id: chatId,
+          message_id: messageId,
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ text: "🎛️ Menu Utama", callback_data: "action_menu" }]]
+          }
+        }
+      );
+      return;
+    }
 
     if (data === "action_trigger_link") {
       const loadingMsg = await bot.sendMessage(chatId, "🔗 *Membuat kode penghubung...*", { parse_mode: "Markdown" });
