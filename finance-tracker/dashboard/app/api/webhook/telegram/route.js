@@ -795,8 +795,6 @@ async function processTelegramUpdate(update) {
       return;
     }
 
-    const session = getSession(telegramId);
-
     if (data === "action_menu") {
       clearSession(telegramId);
       await bot.editMessageText("🎛️ *Menu Utama Keuangan:*", {
