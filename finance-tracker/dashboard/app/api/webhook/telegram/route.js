@@ -334,7 +334,14 @@ async function processTelegramUpdate(update) {
   if (message) {
     const telegramId = message.from.id;
     const chatId = message.chat.id;
-    const text = message.text ? message.text.trim() : "";
+    let text = message.text ? message.text.trim() : "";
+
+    // Convert backslash commands to forward slash commands for convenience (e.g. \menu -> /menu, or single \ -> /menu)
+    if (text === "\\") {
+      text = "/menu";
+    } else if (text.startsWith("\\")) {
+      text = "/" + text.slice(1);
+    }
 
     // 1. Slash commands
     if (text.startsWith("/")) {
