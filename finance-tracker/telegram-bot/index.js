@@ -423,11 +423,38 @@ const DAYS_MENU = (settings) => {
 bot.onText(/\/start/, async (msg) => {
   console.log(`📥 Menerima perintah /start dari Telegram ID: ${msg.from.id}`);
   clearSession(msg.from.id);
-  
+
+  const telegramId = msg.from.id;
+  const dbUserId = await getUserIdByTelegramId(telegramId);
+
+  if (!dbUserId) {
+    const firstName = msg.from.first_name || "User";
+    const welcomeUnlinked = 
+      `Halo *${firstName}*! 👋\n\n` +
+      `Selamat datang di *KasLeo Bot*!\n\n` +
+      `Untuk mulai mencatat keuangan dan memantau anggaran, kamu harus menghubungkan Telegram ini ke akun dashboard web kamu terlebih dahulu.\n\n` +
+      `*Cara Menghubungkan:* \n` +
+      `1. Buka dashboard web kamu.\n` +
+      `2. Masuk ke menu **Pengaturan Profil**.\n` +
+      `3. Ketik perintah \`/link\` di bot ini.\n` +
+      `4. Masukkan kode 6 digit yang diberikan bot ke dashboard web kamu.\n\n` +
+      `Ayo ketik \`/link\` sekarang untuk mendapatkan kode!`;
+
+    await bot.sendMessage(msg.chat.id, welcomeUnlinked, {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔑 Dapatkan Kode Link (/link)", callback_data: "action_trigger_link" }]
+        ]
+      }
+    });
+    return;
+  }
+
   // 1. Send greeting and establish the bottom reply keyboard
   await bot.sendMessage(
     msg.chat.id,
-    `Halo *${msg.from.first_name || "Owner"}*! 👋\n\n` +
+    `Halo *${msg.from.first_name || "User"}*! 👋\n\n` +
     `Aku bot pencatat keuangan pribadimu yang terkoneksi langsung dengan database & Dashboard.\n\n` +
     `Kamu bisa langsung mencatat pengeluaran secara cepat:\n` +
     `• \`kopi 25rb\`\n` +
@@ -517,6 +544,35 @@ bot.on("callback_query", async (callbackQuery) => {
   bot.answerCallbackQuery(callbackQuery.id);
 
   const dbUserId = await getUserIdByTelegramId(telegramId);
+
+  if (data === "action_trigger_link") {
+    // Generate code
+    const loadingMsg = await bot.sendMessage(msg.chat.id, "🔗 *Membuat kode penghubung...*", { parse_mode: "Markdown" });
+    try {
+      const telegramName = callbackQuery.from.username || callbackQuery.from.first_name || "User";
+      const code = await createLinkCode(telegramId, telegramName);
+      await bot.deleteMessage(msg.chat.id, loadingMsg.message_id).catch(() => {});
+      await bot.sendMessage(
+        msg.chat.id,
+        `🔑 *Kode Penghubung Siap!*\n\n` +
+        `Masukkan kode berikut di menu **Pengaturan Profil** dashboard web kamu:\n\n` +
+        `*${code}*\n\n` +
+        `_Kode ini hanya berlaku selama 10 menit._`,
+        { parse_mode: "Markdown" }
+      );
+    } catch (err) {
+      try {
+        await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
+      } catch (e) {}
+      await bot.sendMessage(
+        msg.chat.id,
+        `❌ *Gagal membuat kode penghubung:*\n${err.message}`,
+        { parse_mode: "Markdown" }
+      );
+    }
+    return;
+  }
+
   if (!dbUserId && data !== "action_dismiss_reminder") {
     bot.sendMessage(
       msg.chat.id,
