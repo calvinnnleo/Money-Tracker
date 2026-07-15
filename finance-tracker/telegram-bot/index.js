@@ -422,10 +422,6 @@ const DAYS_MENU = (settings) => {
 // Command start & help
 bot.onText(/\/start/, async (msg) => {
   console.log(`📥 Menerima perintah /start dari Telegram ID: ${msg.from.id}`);
-  if (!isOwner(msg)) {
-    console.log(`⚠️ User bukan owner! Owner ID: ${OWNER_ID}, User ID: ${msg.from.id}`);
-    return;
-  }
   clearSession(msg.from.id);
   
   // 1. Send greeting and establish the bottom reply keyboard
@@ -445,20 +441,26 @@ bot.onText(/\/start/, async (msg) => {
   bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
 });
 
-bot.onText(/\/menu/, (msg) => {
+bot.onText(/\/menu/, async (msg) => {
   console.log(`📥 Menerima perintah /menu dari Telegram ID: ${msg.from.id}`);
-  if (!isOwner(msg)) {
-    console.log(`⚠️ User bukan owner! Owner ID: ${OWNER_ID}, User ID: ${msg.from.id}`);
+  clearSession(msg.from.id);
+
+  const dbUserId = await getUserIdByTelegramId(msg.from.id);
+  if (!dbUserId) {
+    bot.sendMessage(
+      msg.chat.id,
+      "⚠️ *Bot belum terhubung dengan akun Dashboard!*\n\n" +
+      "Ketik perintah `/link` untuk memulai proses penghubungan akun.",
+      { parse_mode: "Markdown" }
+    );
     return;
   }
-  clearSession(msg.from.id);
 
   // Send the Menu Utama inline buttons directly (it will render the buttons on the message)
   bot.sendMessage(msg.chat.id, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...MAIN_MENU });
 });
 
 bot.onText(/\/link/, async (msg) => {
-  if (!isOwner(msg)) return;
   clearSession(msg.from.id);
   
   const loadingMsg = await bot.sendMessage(msg.chat.id, "🔗 *Membuat kode penghubung...*", { parse_mode: "Markdown" });
@@ -490,7 +492,6 @@ bot.onText(/\/link/, async (msg) => {
 });
 
 bot.onText(/\/help/, (msg) => {
-  if (!isOwner(msg)) return;
   bot.sendMessage(
     msg.chat.id,
     `💡 *Bantuan Format Pencatatan:* \n\n` +
@@ -511,12 +512,6 @@ bot.on("callback_query", async (callbackQuery) => {
   const msg = callbackQuery.message;
   const telegramId = callbackQuery.from.id;
   const data = callbackQuery.data;
-
-  // Verify owner
-  if (String(telegramId) !== OWNER_ID) {
-    bot.answerCallbackQuery(callbackQuery.id, { text: "Akses Ditolak." });
-    return;
-  }
 
   // Answer callback query so Telegram loader stops
   bot.answerCallbackQuery(callbackQuery.id);
@@ -1315,8 +1310,6 @@ bot.on("callback_query", async (callbackQuery) => {
 
 // Message listener (Handles chat inputs)
 bot.on("message", async (msg) => {
-  if (!isOwner(msg)) return;
-  
   const telegramId = msg.from.id;
   const text = msg.text ? msg.text.trim() : "";
 
