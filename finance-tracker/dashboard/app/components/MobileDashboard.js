@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { createClient } from "../../lib/supabase-browser";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -309,6 +310,49 @@ export default function MobileDashboard({
   const [telegramCode, setTelegramCode] = useState("");
   const [telegramLoading, setTelegramLoading] = useState(false);
   const [telegramStatus, setTelegramStatus] = useState(null);
+
+  // Change password states
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordStatus, setPasswordStatus] = useState(null);
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+
+  const supabase = createClient();
+
+  const handleChangePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordStatus({ type: "error", msg: "Password baru minimal 6 karakter." });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus({ type: "error", msg: "Password baru dan konfirmasi tidak cocok." });
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordStatus(null);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      setPasswordStatus({ type: "success", msg: "Password berhasil diganti!" });
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        setShowPasswordFields(false);
+        setPasswordStatus(null);
+      }, 2000);
+    } catch (err) {
+      setPasswordStatus({ type: "error", msg: err.message || "Gagal mengubah password." });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   const handleLinkTelegram = async () => {
     if (!telegramCode.trim() || telegramCode.trim().length !== 6) {
@@ -2055,20 +2099,60 @@ export default function MobileDashboard({
                 />
               </div>
 
-              {/* Dark Mode Toggle */}
-              <div className="flex items-center justify-between bg-[#F2F2F7] dark:bg-zinc-900 p-3.5 rounded-2xl border border-separator/20 dark:border-zinc-800">
-                <span className="text-xs font-bold">Dark Mode</span>
-                <button
-                  type="button"
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  className={`w-11 h-6 rounded-full transition-all duration-300 relative ${
-                    isDarkMode ? "bg-violet" : "bg-secondary/40"
-                  }`}
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-300 ${
-                    isDarkMode ? "left-[22px]" : "left-0.5"
-                  }`} />
-                </button>
+              {/* Change Password */}
+              <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
+                <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Ganti Password</span>
+                {!showPasswordFields ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordFields(true)}
+                    className="w-full py-2.5 bg-white dark:bg-zinc-800 border border-separator/25 dark:border-zinc-700/60 rounded-xl text-[11px] font-bold text-ink dark:text-zinc-200 active:scale-95 transition"
+                  >
+                    🔒 Ubah Password Akun
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="password"
+                      placeholder="Password Baru (min. 6 karakter)"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full bg-surface dark:bg-zinc-955 border border-separator/35 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold placeholder-secondary/70 text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Konfirmasi Password Baru"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full bg-surface dark:bg-zinc-955 border border-separator/35 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold placeholder-secondary/70 text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
+                    />
+                    <div className="flex gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPasswordFields(false);
+                          setPasswordStatus(null);
+                        }}
+                        className="flex-1 py-2 bg-white dark:bg-zinc-800 border border-separator/25 dark:border-zinc-700 text-secondary dark:text-zinc-300 font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        disabled={passwordLoading}
+                        onClick={handleChangePassword}
+                        className="flex-1 py-2 bg-violet disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
+                      >
+                        {passwordLoading ? "..." : "Simpan"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {passwordStatus && (
+                  <p className={`text-[9px] font-bold leading-normal mt-1 ${passwordStatus.type === "success" ? "text-green" : "text-red"}`}>
+                    {passwordStatus.msg}
+                  </p>
+                )}
               </div>
 
               {/* Telegram Integration */}

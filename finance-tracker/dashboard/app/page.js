@@ -36,7 +36,6 @@ export default function Page() {
   const [userName, setUserName] = useState("User");
   const [profile, setProfile] = useState(null);
   const [savingsTarget, setSavingsTarget] = useState(2000000);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [localTransactions, setLocalTransactions] = useState([]);
 
   const fetchProfile = async () => {
@@ -110,8 +109,7 @@ export default function Page() {
     const savedTarget = localStorage.getItem("saved_savings_target");
     if (savedTarget) setSavingsTarget(parseFloat(savedTarget) || 2000000);
 
-    const savedDarkMode = localStorage.getItem("saved_dark_mode");
-    if (savedDarkMode) setIsDarkMode(savedDarkMode === "true");
+
 
     const savedLocalTxs = localStorage.getItem("saved_local_transactions");
     if (savedLocalTxs) {
@@ -135,9 +133,7 @@ export default function Page() {
     localStorage.setItem("saved_savings_target", savingsTarget.toString());
   }, [savingsTarget]);
 
-  useEffect(() => {
-    localStorage.setItem("saved_dark_mode", isDarkMode.toString());
-  }, [isDarkMode]);
+
 
   useEffect(() => {
     localStorage.setItem("saved_local_transactions", JSON.stringify(localTransactions));
@@ -492,8 +488,8 @@ export default function Page() {
       setUserName={handleUpdateProfileName}
       savingsTarget={savingsTarget}
       setSavingsTarget={setSavingsTarget}
-      isDarkMode={isDarkMode}
-      setIsDarkMode={setIsDarkMode}
+      isDarkMode={false}
+      setIsDarkMode={() => {}}
       onAddTransaction={handleAddTransaction}
       onLogout={handleLogout}
       telegramId={profile?.telegram_id}
