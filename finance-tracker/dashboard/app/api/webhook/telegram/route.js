@@ -60,20 +60,9 @@ function getMainMenu() {
   return { reply_markup: { inline_keyboard: rows } };
 }
 
-const REPLY_KEYBOARD = {
+const REMOVE_KEYBOARD = {
   reply_markup: {
-    keyboard: [
-      [
-        { text: "🎛️ Menu Utama" },
-        { text: "📊 Ringkasan" },
-      ],
-      [
-        { text: "💰 Cek Budget" },
-        { text: "📋 Riwayat" },
-      ]
-    ],
-    resize_keyboard: true,
-    one_time_keyboard: false
+    remove_keyboard: true
   }
 };
 
@@ -385,8 +374,8 @@ async function processTelegramUpdate(update) {
           `• \`kopi 25rb\`\n` +
           `• \`beli sepatu 350k\`\n` +
           `• \`masuk 5jt gaji bulanan\`\n\n` +
-          `Gunakan keyboard menu cepat di bawah ini untuk navigasi cepat tanpa mengetik!`,
-          { parse_mode: "Markdown", ...REPLY_KEYBOARD }
+          `Gunakan menu interaktif di bawah ini untuk navigasi cepat!`,
+          { parse_mode: "Markdown", ...REMOVE_KEYBOARD }
         );
 
         await bot.sendMessage(chatId, "🎛️ *Menu Utama Keuangan:*", { parse_mode: "Markdown", ...getMainMenu() });
@@ -576,7 +565,7 @@ async function processTelegramUpdate(update) {
         `• \`kopi 25rb\` (pengeluaran)\n` +
         `• \`masuk 5jt bonus\` (pemasukan)\n\n` +
         `Atau ketik /menu untuk mencatat lewat tombol navigasi.`,
-        { parse_mode: "Markdown", ...REPLY_KEYBOARD }
+        { parse_mode: "Markdown", ...REMOVE_KEYBOARD }
       );
       return;
     }
@@ -591,7 +580,7 @@ async function processTelegramUpdate(update) {
         `• Nominal: *${formatRupiah(parsed.amount)}*\n` +
         `• Catatan: _${parsed.note}_\n\n` +
         `💡 _Kategori ditebak otomatis via keyword/AI._`,
-        { parse_mode: "Markdown", ...REPLY_KEYBOARD }
+        { parse_mode: "Markdown", ...REMOVE_KEYBOARD }
       );
       if (parsed.type === "Expense") {
         await checkBudgetAlert(dbUserId, parsed, bot, chatId);
