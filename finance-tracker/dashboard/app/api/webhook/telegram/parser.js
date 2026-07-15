@@ -1,4 +1,11 @@
-import { categorizeWithAI } from "./ai-categorizer.js";
+import Groq from "groq-sdk";
+
+const apiKey = process.env.GROQ_API_KEY;
+let groq = null;
+
+if (apiKey) {
+  groq = new Groq({ apiKey });
+}
 
 const CATEGORY_KEYWORDS = {
   Makanan:       ["makan", "kopi", "jajan", "resto", "warteg", "gofood", "grabfood",
@@ -75,41 +82,111 @@ export function parseNumberAndNote(text) {
   };
 }
 
-export async function parseMessage(text) {
-  const cleanText = text.trim();
-  
-  const parsed = parseNumberAndNote(cleanText);
-  if (!parsed) return null;
+function fallbackRegexParser(text) {
+  const parsed = parseNumberAndNote(text);
+  if (!parsed) {
+    return {
+      is_transaction: false,
+      reply_message: "Halo! Saya tidak mengenali format tersebut. Silakan ketik nominal dan nama transaksi, contoh: `kopi 25rb` atau `masuk 5jt gaji`."
+    };
+  }
 
   let { amount, note } = parsed;
   let type = "Expense";
-
   const lowerNote = note.toLowerCase();
   if (lowerNote.startsWith("masuk ") || lowerNote.endsWith(" masuk") || lowerNote === "masuk") {
     type = "Income";
     note = note.replace(/\bmasuk\b/gi, "").trim();
-  } else if (lowerNote.startsWith("keluar ") || lowerNote.endsWith(" keluar") || lowerNote === "keluar") {
-    type = "Expense";
-    note = note.replace(/\bkeluar\b/gi, "").trim();
   }
-
-  note = note || "-";
 
   let category = guessCategoryByKeywords(note);
-  
   if (!category) {
-    category = await categorizeWithAI(note);
-  }
-
-  if (type === "Income" && category === "Lainnya") {
-    category = "Gaji";
+    category = type === "Income" ? "Gaji" : "Lainnya";
   }
 
   return {
-    date: new Date().toISOString().slice(0, 10),
+    is_transaction: true,
     type,
-    category,
     amount,
-    note: note === "" ? "-" : note,
+    category,
+    note: note || "-",
+    reply_message: `✅ *Dicatat otomatis!* (${type === "Income" ? "Pemasukan" : "Pengeluaran"})\n\n` +
+      `• Kategori: *${category}*\n` +
+      `• Nominal: *Rp${Math.round(amount).toLocaleString("id-ID")}*\n` +
+      `• Catatan: _${note || "-"}_`
   };
+}
+
+export async function parseMessage(text) {
+  if (!groq) {
+    console.warn("⚠️ GROQ_API_KEY tidak ditemukan. Fallback ke parser regex.");
+    return fallbackRegexParser(text);
+  }
+
+  const CATEGORIES = [
+    "Makanan", "Transportasi", "Belanja", "Tagihan",
+    "Hiburan", "Kesehatan", "Pendidikan", "Investasi",
+    "Donasi", "Gaji", "Lainnya"
+  ];
+
+  // Use AbortController for a strict 6-second timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const response = await groq.chat.completions.create(
+      {
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "system",
+            content: `Kamu adalah KasLeo AI, asisten chatbot keuangan pribadi Indonesia yang ramah.
+Tugasmu adalah menganalisis pesan chat pengguna dan mengembalikan data terstruktur dalam format JSON.
+
+Pahami jenis pesan berikut:
+1. Obrolan Biasa (chit-chat, sapaan seperti "halo", "siapa kamu", "cara pakai", atau pertanyaan umum):
+   Set "is_transaction" ke false.
+   Berikan balasan ramah di "reply_message" dengan contoh pencatatan (misalnya: "Halo! Saya KasLeo AI. Kamu bisa catat seperti 'makan bakso 35k' atau 'gaji freelance masuk 2jt'.").
+
+2. Transaksi Keuangan (pengeluaran atau pemasukan):
+   Set "is_transaction" ke true.
+   Klasifikasikan:
+   - "type": "Expense" (jika beli, bayar, pengeluaran, keluar) atau "Income" (jika gaji, bonus, masuk, terima uang).
+   - "amount": angka nominal bersih (misal "50k" -> 50000, "1.5jt" -> 1500000, "20 ribu" -> 20000).
+   - "category": salah satu dari: ${CATEGORIES.join(", ")}.
+   - "note": nama barang/kegiatan saja (misal "beli bensin shell 50rb" -> note "bensin shell").
+   - "reply_message": konfirmasi sukses mencatat dengan menyebutkan nominal terformat, kategori, dan catatan secara bersahabat.
+
+Kembalikan HANYA format JSON valid seperti ini tanpa markdown code block:
+{
+  "is_transaction": boolean,
+  "type": "Expense" | "Income" | null,
+  "amount": number | null,
+  "category": string | null,
+  "note": string | null,
+  "reply_message": string
+}`
+          },
+          {
+            role: "user",
+            content: text
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 250,
+      },
+      { signal: controller.signal }
+    );
+
+    clearTimeout(timeoutId);
+
+    const content = response.choices[0].message.content.trim();
+    const result = JSON.parse(content);
+    return result;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.error("❌ Gagal parseMessage dengan AI:", err.message);
+    return fallbackRegexParser(text);
+  }
 }

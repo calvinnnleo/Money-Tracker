@@ -563,37 +563,44 @@ async function processTelegramUpdate(update) {
       return;
     }
 
-    const parsed = await parseMessage(text);
-    if (!parsed) {
+    const aiResult = await parseMessage(text);
+    if (!aiResult) {
       await bot.sendMessage(
         chatId,
-        `⚠️ *Format tidak dikenali.* \n\n` +
-        `Gunakan format langsung seperti:\n` +
-        `• \`kopi 25rb\` (pengeluaran)\n` +
-        `• \`masuk 5jt bonus\` (pemasukan)\n\n` +
-        `Atau ketik /menu untuk mencatat lewat tombol navigasi.`,
+        "⚠️ Maaf, terjadi kesalahan saat asisten AI memproses pesan kamu.",
         { parse_mode: "Markdown", ...REMOVE_KEYBOARD }
       );
       return;
     }
 
-    try {
-      await addTransaction(dbUserId, parsed);
-      const typeLabel = parsed.type === "Income" ? "Pemasukan" : "Pengeluaran";
-      await bot.sendMessage(
-        chatId,
-        `✅ *Dicatat otomatis!* (${typeLabel})\n\n` +
-        `• Kategori: *${parsed.category}*\n` +
-        `• Nominal: *${formatRupiah(parsed.amount)}*\n` +
-        `• Catatan: _${parsed.note}_\n\n` +
-        `💡 _Kategori ditebak otomatis via keyword/AI._`,
-        { parse_mode: "Markdown", ...REMOVE_KEYBOARD }
-      );
-      if (parsed.type === "Expense") {
-        await checkBudgetAlert(dbUserId, parsed, bot, chatId);
+    if (aiResult.is_transaction) {
+      const transaction = {
+        date: new Date().toISOString().slice(0, 10),
+        type: aiResult.type,
+        category: aiResult.category,
+        amount: aiResult.amount,
+        note: aiResult.note || "-",
+      };
+
+      try {
+        await addTransaction(dbUserId, transaction);
+        await bot.sendMessage(
+          chatId,
+          aiResult.reply_message || `✅ *Dicatat otomatis!* (${transaction.type === "Income" ? "Pemasukan" : "Pengeluaran"})\n\n` +
+          `• Kategori: *${transaction.category}*\n` +
+          `• Nominal: *${formatRupiah(transaction.amount)}*\n` +
+          `• Catatan: _${transaction.note}_`,
+          { parse_mode: "Markdown", ...REMOVE_KEYBOARD }
+        );
+        if (transaction.type === "Expense") {
+          await checkBudgetAlert(dbUserId, transaction, bot, chatId);
+        }
+      } catch (err) {
+        await bot.sendMessage(chatId, `❌ Gagal menyimpan transaksi: ${err.message}`);
       }
-    } catch (err) {
-      await bot.sendMessage(chatId, `❌ Gagal menyimpan transaksi: ${err.message}`);
+    } else {
+      // Obrolan biasa / chit-chat
+      await bot.sendMessage(chatId, aiResult.reply_message, { parse_mode: "Markdown", ...REMOVE_KEYBOARD });
     }
   }
 
