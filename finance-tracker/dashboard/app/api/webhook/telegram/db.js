@@ -3,9 +3,16 @@ import { createClient } from "@supabase/supabase-js";
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(url, key);
+if (!url || !key) {
+  console.error("❌ CRITICAL: SUPABASE_URL atau SUPABASE_SERVICE_ROLE_KEY belum diatur di Environment Variables!");
+}
+
+const supabase = url && key ? createClient(url, key) : null;
 
 function client() {
+  if (!supabase) {
+    throw new Error("Supabase client belum terkonfigurasi. Pastikan SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY sudah diatur di Vercel Environment Variables.");
+  }
   return supabase;
 }
 

@@ -26,6 +26,7 @@ export async function categorizeWithAI(text) {
   
   const words = text.split(/\s+/).map(cleanWord).filter(Boolean);
   
+  // Check learned cache first (instant, no API call)
   for (const word of words) {
     if (learnedKeywords.has(word)) {
       console.log(`🤖 [Learned Cache Hit] Keyword: '${word}' -> Category: '${learnedKeywords.get(word)}'`);
@@ -37,15 +38,20 @@ export async function categorizeWithAI(text) {
     return "Lainnya";
   }
 
+  // Use AbortController for a strict 5-second timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
   try {
     console.log(`🤖 Panggilan Groq API (llama-3.1-8b-instant) untuk: "${text}"`);
     
-    const response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      messages: [
-        {
-          role: "system",
-          content: `Kamu adalah asisten pengelola keuangan pribadi Indonesia. 
+    const response = await groq.chat.completions.create(
+      {
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "system",
+            content: `Kamu adalah asisten pengelola keuangan pribadi Indonesia. 
 Tugasmu adalah menganalisis catatan transaksi singkat dan mengelompokkannya ke dalam SATU kategori yang paling cocok dari daftar berikut:
 ${CATEGORIES.join(", ")}
 
@@ -53,19 +59,24 @@ Aturan:
 - Balas HANYA dengan satu kata kategori dari daftar di atas. Jangan beri penjelasan, tanda baca, atau spasi tambahan.
 - Konteks adalah transaksi harian di Indonesia (e.g. warkop -> Makanan, bayar kos -> Tagihan, top up shopeepay -> Belanja, isi emoney -> Transportasi, nonton bioskop -> Hiburan, beli buku -> Pendidikan).
 - Jika tidak yakin atau tidak cocok dengan yang lain, balas: Lainnya.`
-        },
-        {
-          role: "user",
-          content: text
-        }
-      ],
-      temperature: 0,
-      max_tokens: 15,
-    });
+          },
+          {
+            role: "user",
+            content: text
+          }
+        ],
+        temperature: 0,
+        max_tokens: 15,
+      },
+      { signal: controller.signal }
+    );
+
+    clearTimeout(timeoutId);
 
     const category = response.choices[0].message.content.trim();
     
     if (CATEGORIES.includes(category)) {
+      // Cache the learned keywords for warm container reuse
       if (words.length > 0) {
         words.slice(0, 2).forEach((w) => {
           if (w.length > 3) {
@@ -78,7 +89,12 @@ Aturan:
     
     return "Lainnya";
   } catch (err) {
-    console.error("❌ Gagal mengategorikan dengan AI:", err.message);
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      console.warn("⚠️ Groq API timeout setelah 5 detik, fallback ke 'Lainnya'.");
+    } else {
+      console.error("❌ Gagal mengategorikan dengan AI:", err.message);
+    }
     return "Lainnya";
   }
 }
