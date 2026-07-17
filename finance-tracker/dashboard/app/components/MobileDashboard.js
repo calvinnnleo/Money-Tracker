@@ -37,6 +37,7 @@ import {
   ArrowUpDown,
   Plus,
   Trash2,
+  Edit2,
 } from "lucide-react";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -75,10 +76,7 @@ function formatRupiah(n) {
 }
 
 function formatCompact(n) {
-  const abs = Math.abs(n);
-  if (abs >= 1000000) return `${(n / 1000000).toFixed(1)}jt`;
-  if (abs >= 1000) return `${(n / 1000).toFixed(0)}rb`;
-  return n.toString();
+  return Math.round(n).toLocaleString("id-ID");
 }
 
 function getGreeting() {
@@ -1416,7 +1414,7 @@ export default function MobileDashboard({
                   </div>
                   <div className="h-48 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={trendData} margin={{ top: 10, right: 5, left: -28, bottom: 0 }}>
+                      <AreaChart data={trendData} margin={{ top: 10, right: 5, left: 15, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colIncomeMobile" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#34C759" stopOpacity={0.15} />
@@ -1442,7 +1440,7 @@ export default function MobileDashboard({
                         <YAxis
                           tickLine={false}
                           axisLine={false}
-                          tickFormatter={(v) => `${(v / 1000000).toFixed(0)}jt`}
+                          tickFormatter={(v) => Math.round(v).toLocaleString("id-ID")}
                           tick={{ fontSize: 8, fill: "#8E8E93" }}
                         />
                         <Tooltip
@@ -1504,13 +1502,13 @@ export default function MobileDashboard({
                     <div className="flex justify-between items-center mb-2">
                       <Flame className="w-4 h-4 text-orange" />
                       <span className="text-[8px] text-secondary font-bold uppercase tracking-wider">
-                        Rata-rata/Hari
+                        Pengeluaran/Hari
                       </span>
                     </div>
                     <h3 className="text-2xl font-black text-ink tracking-tight">
                       {formatCompact(stats.dailyAvg)}
                     </h3>
-                    <p className="text-secondary text-[8px] font-bold mt-1">Per hari transaksi</p>
+                    <p className="text-secondary text-[8px] font-bold mt-1">Rata-rata pengeluaran harian</p>
                   </div>
 
                   {/* MoM Change - With previous month existence validation */}
@@ -1618,10 +1616,10 @@ export default function MobileDashboard({
                           <p className="text-xs font-black text-ink dark:text-zinc-200">{formatRupiah(savingsTarget)}</p>
                           <button
                             onClick={() => setIsEditingSavingsTarget(true)}
-                            className="p-1 hover:bg-violet/10 text-violet rounded-lg transition"
+                            className="p-1 hover:bg-violet/10 text-secondary hover:text-violet rounded-lg transition"
                             title="Edit Target"
                           >
-                            ✏️
+                            <Edit2 className="w-3.5 h-3.5 opacity-60 hover:opacity-100 transition-opacity" />
                           </button>
                         </div>
                       </div>
