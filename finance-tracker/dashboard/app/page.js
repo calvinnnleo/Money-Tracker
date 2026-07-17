@@ -19,6 +19,27 @@ const COLORS = {
   Lainnya:       "#8E8E93", // Gray
 };
 
+function getElapsedDaysInMonth(monthStr) {
+  if (!monthStr) return 1;
+  const [yearStr, monthValStr] = monthStr.split("-");
+  const y = parseInt(yearStr);
+  const m = parseInt(monthValStr); // 1-indexed
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-indexed
+
+  if (y === currentYear && m === currentMonth) {
+    return now.getDate(); // elapsed days in current month
+  } else if (y < currentYear || (y === currentYear && m < currentMonth)) {
+    // past month: total days in that month
+    return new Date(y, m, 0).getDate();
+  } else {
+    // future month
+    return 1;
+  }
+}
+
 export default function Page() {
   const [data, setData] = useState({ transactions: [], budgets: [] });
   const [error, setError] = useState(null);
@@ -174,6 +195,12 @@ export default function Page() {
               budgets: mergedBudgets.length > 0 ? mergedBudgets : sheetBudgets
             };
           });
+
+          // Clean up localTransactions that are already synced with the server
+          setLocalTransactions(prev => {
+            const serverTxIds = new Set(d.transactions.map(tx => tx.id).filter(Boolean));
+            return prev.filter(tx => !serverTxIds.has(tx.id));
+          });
         } else if (d && d.error) {
           console.warn("API returned error: ", d.error);
         }
@@ -263,9 +290,26 @@ export default function Page() {
     setSelectedMonth(`${y}-${String(m).padStart(2, "0")}`);
   };
 
-  // Merged transactions (Google Sheet + local manual inputs)
+  // Merged transactions (Google Sheet + local manual inputs with deduplication)
   const allTransactions = useMemo(() => {
-    return [...(data?.transactions || []), ...localTransactions];
+    const seen = new Set();
+    const result = [];
+    
+    (data?.transactions || []).forEach(tx => {
+      const key = tx.id || `${tx.date}-${tx.type}-${tx.category}-${tx.amount}-${tx.note}`;
+      seen.add(key);
+      result.push(tx);
+    });
+
+    localTransactions.forEach(tx => {
+      const key = tx.id || `${tx.date}-${tx.type}-${tx.category}-${tx.amount}-${tx.note}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(tx);
+      }
+    });
+
+    return result;
   }, [data?.transactions, localTransactions]);
 
   // Filter transactions for the selected month
@@ -348,11 +392,10 @@ export default function Page() {
     const currentIncome = currentTxs.filter((t) => t.type === "Income").reduce((sum, t) => sum + t.amount, 0);
 
     const momDiff = currentSpent - prevSpent;
-    const momPercentage = prevSpent ? (momDiff / prevSpent) * 100 : 0;
+    const momPercentage = prevSpent ? (momDiff / prevSpent) * 100 : (currentSpent > 0 ? 100 : 0);
 
-    const uniqueDays = new Set(currentTxs.filter((t) => t.type === "Expense").map((t) => t.date));
-    const daysCount = uniqueDays.size || 1;
-    const dailyAvg = currentSpent / (daysCount || 1);
+    const elapsedDays = getElapsedDaysInMonth(selectedMonth);
+    const dailyAvg = currentSpent / (elapsedDays || 1);
 
     const savingsRate = currentIncome ? ((currentIncome - currentSpent) / currentIncome) * 100 : 0;
 

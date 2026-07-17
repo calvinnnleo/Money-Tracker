@@ -297,6 +297,14 @@ export default function MobileDashboard({
   const [txNote, setTxNote] = useState("");
   const [txDate, setTxDate] = useState("");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditingSavingsTarget, setIsEditingSavingsTarget] = useState(false);
+  const [tempSavingsTarget, setTempSavingsTarget] = useState(savingsTarget.toString());
+
+  useEffect(() => {
+    setTempSavingsTarget(savingsTarget.toString());
+  }, [savingsTarget]);
+
   // Sync txDate with selectedDate when modal opens
   useEffect(() => {
     if (showAddTxModal) {
@@ -1513,13 +1521,11 @@ export default function MobileDashboard({
                         vs Bulan Lalu
                       </span>
                     </div>
-                    {stats.currentSpent === 0 || stats.prevSpent === 0 ? (
+                    {stats.currentSpent === 0 ? (
                       <div className="mt-1">
                         <span className="text-[11px] font-bold text-secondary">Belum ada data</span>
                         <p className="text-[7.5px] text-secondary/70 font-semibold mt-0.5 leading-tight">
-                          {stats.currentSpent === 0 
-                            ? "Belum ada transaksi tercatat di bulan ini." 
-                            : "Belum ada transaksi tercatat di bulan lalu."}
+                          Belum ada transaksi tercatat di bulan ini.
                         </p>
                       </div>
                     ) : (
@@ -1532,7 +1538,9 @@ export default function MobileDashboard({
                           {stats.momDiff <= 0 ? "▼" : "▲"} {Math.abs(Math.round(stats.momPercentage))}%
                         </h3>
                         <p className="text-secondary text-[8px] font-bold mt-1">
-                          {stats.momDiff <= 0 ? "Lebih hemat" : "Lebih boros"}
+                          {stats.prevSpent === 0 
+                            ? "vs Rp0 bulan lalu" 
+                            : (stats.momDiff <= 0 ? "Lebih hemat" : "Lebih boros")}
                         </p>
                       </div>
                     )}
@@ -1570,10 +1578,54 @@ export default function MobileDashboard({
                         {formatRupiah(Math.max(monthlyData.income - monthlyData.expense, 0))}
                       </h4>
                     </div>
-                    <div className="text-right">
-                      <p className="text-secondary text-[9px] font-bold uppercase">Target</p>
-                      <p className="text-xs font-black text-ink dark:text-zinc-200">{formatRupiah(savingsTarget)}</p>
-                    </div>
+                    {isEditingSavingsTarget ? (
+                      <div className="flex flex-col items-end gap-1.5">
+                        <p className="text-secondary text-[9px] font-bold uppercase">Target</p>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={tempSavingsTarget}
+                            onChange={(e) => setTempSavingsTarget(e.target.value)}
+                            className="bg-[#F2F2F7] dark:bg-zinc-800 rounded-xl px-2 py-0.5 text-xs font-bold text-ink dark:text-zinc-200 w-20 text-right focus:outline-none focus:ring-1 focus:ring-violet"
+                          />
+                          <button
+                            onClick={() => {
+                              const val = parseFloat(tempSavingsTarget);
+                              if (!isNaN(val)) {
+                                setSavingsTarget(val);
+                              }
+                              setIsEditingSavingsTarget(false);
+                            }}
+                            className="px-2 py-0.5 bg-violet text-white rounded-lg text-[9px] font-bold uppercase active:scale-95 transition"
+                          >
+                            OK
+                          </button>
+                          <button
+                            onClick={() => {
+                              setTempSavingsTarget(savingsTarget.toString());
+                              setIsEditingSavingsTarget(false);
+                            }}
+                            className="px-2 py-0.5 bg-[#E5E5EA] dark:bg-zinc-800 text-secondary rounded-lg text-[9px] font-bold uppercase active:scale-95 transition"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-right">
+                        <p className="text-secondary text-[9px] font-bold uppercase">Target</p>
+                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                          <p className="text-xs font-black text-ink dark:text-zinc-200">{formatRupiah(savingsTarget)}</p>
+                          <button
+                            onClick={() => setIsEditingSavingsTarget(true)}
+                            className="p-1 hover:bg-violet/10 text-violet rounded-lg transition"
+                            title="Edit Target"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="progress-bar bg-separator/40 h-[6px] rounded-full overflow-hidden mb-1">
                     <div 
@@ -1833,18 +1885,27 @@ export default function MobileDashboard({
                   Batal
                 </button>
                 <button
-                  onClick={() => {
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    if (isSubmitting) return;
                     if (!newCatName.trim()) return;
                     const amount = parseFloat(newCatBudget) || 0;
                     const finalEmoji = newCatEmoji.trim() || "📌";
-                    onAddBudget(newCatName.trim(), amount);
-                    saveCustomEmoji(newCatName.trim(), finalEmoji);
-                    setShowAddModal(false);
+                    setIsSubmitting(true);
+                    try {
+                      await onAddBudget(newCatName.trim(), amount);
+                      saveCustomEmoji(newCatName.trim(), finalEmoji);
+                      setShowAddModal(false);
+                    } catch (e) {
+                      console.error("Gagal menambahkan kategori:", e);
+                    } finally {
+                      setIsSubmitting(false);
+                    }
                   }}
-                  className="flex-1 py-3.5 rounded-2xl bg-violet text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-glow-red"
+                  className="flex-1 py-3.5 rounded-2xl bg-violet disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-glow-red"
                   style={{ shadowColor: "#AF52DE" }}
                 >
-                  Simpan
+                  {isSubmitting ? "..." : "Simpan"}
                 </button>
               </div>
             </div>
@@ -1899,14 +1960,23 @@ export default function MobileDashboard({
                     Batal
                   </button>
                   <button
-                    onClick={() => {
+                    disabled={isSubmitting}
+                    onClick={async () => {
+                      if (isSubmitting) return;
                       const amount = parseFloat(editBudgetAmount) || 0;
-                      onAddBudget(editingCategory.category, amount);
-                      setEditingCategory(null);
+                      setIsSubmitting(true);
+                      try {
+                        await onAddBudget(editingCategory.category, amount);
+                        setEditingCategory(null);
+                      } catch (e) {
+                        console.error("Gagal memperbarui budget:", e);
+                      } finally {
+                        setIsSubmitting(false);
+                      }
                     }}
-                    className="flex-1 py-3.5 rounded-2xl bg-violet text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition"
+                    className="flex-1 py-3.5 rounded-2xl bg-violet disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition"
                   >
-                    Simpan
+                    {isSubmitting ? "..." : "Simpan"}
                   </button>
                 </div>
                 
@@ -2036,23 +2106,32 @@ export default function MobileDashboard({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    if (isSubmitting) return;
                     const amount = parseFloat(txAmount);
                     if (isNaN(amount) || amount <= 0) return;
-                    onAddTransaction({
-                      date: txDate,
-                      category: txCategory,
-                      note: txNote.trim(),
-                      amount,
-                      type: txType,
-                    });
-                    setTxAmount("");
-                    setTxNote("");
-                    setShowAddTxModal(false);
+                    setIsSubmitting(true);
+                    try {
+                      await onAddTransaction({
+                        date: txDate,
+                        category: txCategory,
+                        note: txNote.trim(),
+                        amount,
+                        type: txType,
+                      });
+                      setTxAmount("");
+                      setTxNote("");
+                      setShowAddTxModal(false);
+                    } catch (e) {
+                      console.error("Gagal menambahkan transaksi:", e);
+                    } finally {
+                      setIsSubmitting(false);
+                    }
                   }}
-                  className="flex-1 py-3.5 rounded-2xl bg-violet text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-glow-violet/20"
+                  className="flex-1 py-3.5 rounded-2xl bg-violet disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-glow-violet/20"
                 >
-                  Simpan
+                  {isSubmitting ? "Menyimpan..." : "Simpan"}
                 </button>
               </div>
             </div>
