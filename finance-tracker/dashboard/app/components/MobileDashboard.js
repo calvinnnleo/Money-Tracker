@@ -389,12 +389,27 @@ export default function MobileDashboard({
     }
   };
 
-  const [userAvatarImage, setUserAvatarImage] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("saved_user_avatar_image") || null;
+  const [userAvatarImage, setUserAvatarImage] = useState(null);
+
+  useEffect(() => {
+    async function loadUserAvatar() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          if (user.user_metadata?.avatar_url) {
+            setUserAvatarImage(user.user_metadata.avatar_url);
+            localStorage.setItem("saved_user_avatar_image_" + user.id, user.user_metadata.avatar_url);
+          } else {
+            const saved = localStorage.getItem("saved_user_avatar_image_" + user.id);
+            if (saved) setUserAvatarImage(saved);
+          }
+        }
+      } catch (err) {
+        console.warn("Avatar sync error:", err);
+      }
     }
-    return null;
-  });
+    loadUserAvatar();
+  }, []);
 
   const handleAvatarUpload = (e) => {
     const file = e.target.files?.[0];
@@ -404,21 +419,37 @@ export default function MobileDashboard({
         return;
       }
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         const base64Data = event.target.result;
         setUserAvatarImage(base64Data);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("saved_user_avatar_image", base64Data);
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            localStorage.setItem("saved_user_avatar_image_" + user.id, base64Data);
+            await supabase.auth.updateUser({
+              data: { avatar_url: base64Data }
+            });
+          }
+        } catch (err) {
+          console.warn("Gagal update user metadata avatar:", err);
         }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveAvatar = async () => {
     setUserAvatarImage(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("saved_user_avatar_image");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        localStorage.removeItem("saved_user_avatar_image_" + user.id);
+        await supabase.auth.updateUser({
+          data: { avatar_url: null }
+        });
+      }
+    } catch (err) {
+      console.warn("Gagal remove avatar:", err);
     }
   };
 
