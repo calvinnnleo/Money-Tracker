@@ -387,6 +387,41 @@ export default function MobileDashboard({
     }
   };
 
+  const [userAvatar, setUserAvatar] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("saved_user_avatar") || "👤";
+    }
+    return "👤";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("saved_user_avatar", userAvatar);
+    }
+  }, [userAvatar]);
+
+  const handleUnlinkTelegram = async () => {
+    if (!confirm("Apakah Anda yakin ingin memutuskan hubungan akun Telegram?")) return;
+    setTelegramLoading(true);
+    setTelegramStatus(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ telegram_id: null })
+          .eq("id", user.id);
+        if (error) throw error;
+        setTelegramStatus({ type: "success", msg: "Hubungan Telegram berhasil diputuskan!" });
+        if (onRefreshProfile) onRefreshProfile();
+      }
+    } catch (err) {
+      setTelegramStatus({ type: "error", msg: err.message || "Gagal memutuskan Telegram." });
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
+
   // Sync setting values when profile modal opens
   useEffect(() => {
     if (showSettingsModal) {
@@ -767,9 +802,9 @@ export default function MobileDashboard({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowSettingsModal(true)}
-                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#1C1C1E] to-[#3A3A3C] dark:from-[#3A3A3C] dark:to-[#555] text-white flex items-center justify-center font-extrabold shadow-float text-xs active:scale-95 transition shrink-0"
+                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#1C1C1E] to-[#3A3A3C] dark:from-[#3A3A3C] dark:to-[#555] text-white flex items-center justify-center font-extrabold shadow-float text-lg active:scale-95 transition shrink-0"
                 >
-                  {userName ? userName.slice(0, 2).toUpperCase() : "CL"}
+                  {userAvatar || (userName ? userName.slice(0, 2).toUpperCase() : "CL")}
                 </button>
                 <div>
                   <p className="text-[10px] text-secondary dark:text-zinc-400 font-bold uppercase tracking-wider">
@@ -2203,7 +2238,7 @@ export default function MobileDashboard({
       {/* Modal 4: Pengaturan Profil & Settings */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
-          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100 max-h-[90vh] overflow-y-auto scrollbar-none">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-black text-sm uppercase tracking-wider">Pengaturan Profil</h3>
               <button 
@@ -2215,6 +2250,30 @@ export default function MobileDashboard({
             </div>
 
             <div className="space-y-4">
+              {/* Profile Picture / Avatar Header */}
+              <div className="flex flex-col items-center bg-[#F2F2F7] dark:bg-zinc-900/80 p-4 rounded-3xl border border-separator/20 dark:border-zinc-800">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet/20 to-purple-500/30 border-2 border-violet/30 flex items-center justify-center text-3xl shadow-inner mb-2.5">
+                  {userAvatar}
+                </div>
+                <span className="text-[9px] font-extrabold text-secondary uppercase tracking-wider mb-1.5">Pilih Avatar Profil</span>
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-none max-w-full pb-1 px-1">
+                  {["👤", "👨‍💻", "👩‍💻", "🦁", "🦊", "🐱", "🚀", "⚡", "👑", "🎯"].map((av) => (
+                    <button
+                      key={av}
+                      type="button"
+                      onClick={() => setUserAvatar(av)}
+                      className={`w-7 h-7 rounded-xl text-sm flex items-center justify-center transition-all ${
+                        userAvatar === av
+                          ? "bg-violet text-white scale-110 shadow-sm"
+                          : "bg-white dark:bg-zinc-800 border border-separator/30 active:scale-90"
+                      }`}
+                    >
+                      {av}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Name */}
               <div>
                 <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Nama Kamu</label>
@@ -2227,28 +2286,16 @@ export default function MobileDashboard({
                 />
               </div>
 
-              {/* Monthly Savings Target */}
-              <div>
-                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Target Tabungan Bulanan</label>
-                <input
-                  type="number"
-                  placeholder="Rp0"
-                  value={settingTarget}
-                  onChange={(e) => setSettingTarget(e.target.value)}
-                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold placeholder-secondary/70 focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100"
-                />
-              </div>
-
               {/* Change Password */}
               <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
-                <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Ganti Password</span>
+                <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Keamanan Akun</span>
                 {!showPasswordFields ? (
                   <button
                     type="button"
                     onClick={() => setShowPasswordFields(true)}
-                    className="w-full py-2.5 bg-white dark:bg-zinc-800 border border-separator/25 dark:border-zinc-700/60 rounded-xl text-[11px] font-bold text-ink dark:text-zinc-200 active:scale-95 transition"
+                    className="w-full py-2.5 bg-white dark:bg-zinc-800 border border-separator/25 dark:border-zinc-700/60 rounded-xl text-[11px] font-bold text-ink dark:text-zinc-200 active:scale-95 transition flex items-center justify-center gap-1.5"
                   >
-                    🔒 Ubah Password Akun
+                    <span>🔒 Ubah Password Akun</span>
                   </button>
                 ) : (
                   <div className="space-y-2">
@@ -2298,16 +2345,27 @@ export default function MobileDashboard({
               {/* Telegram Integration */}
               <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
                 <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Integrasi Telegram</span>
-                {telegramId && (
-                  <div className="text-xs font-bold text-green flex items-center gap-1.5 mb-1">
-                    <span>✅ Terhubung ID: {String(telegramId)}</span>
+                {telegramId ? (
+                  <div className="bg-white dark:bg-zinc-800 p-2.5 rounded-xl border border-green/30 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-green flex items-center gap-1">
+                      <span>✅ Terhubung ID: {String(telegramId)}</span>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={telegramLoading}
+                      onClick={handleUnlinkTelegram}
+                      className="px-2 py-1 bg-red/10 hover:bg-red/20 text-red font-bold text-[9px] uppercase tracking-wider rounded-lg transition"
+                    >
+                      {telegramLoading ? "..." : "🔌 Unlink"}
+                    </button>
                   </div>
-                )}
+                ) : null}
+
                 <div className="space-y-2">
                   <p className="text-[10px] text-secondary dark:text-zinc-400 leading-normal">
-                    {telegramId ? "Ingin mengubah akun Telegram? Ketik " : "Ketik "}
+                    {telegramId ? "Ingin menghubungkan akun Telegram lain? Ketik " : "Ketik "}
                     <code className="px-1 py-0.5 rounded bg-[#E5E5EA] dark:bg-zinc-800 text-violet font-mono text-[9px]">/link</code>
-                    {telegramId ? " di bot baru, lalu masukkan kodenya:" : " di bot, lalu masukkan kodenya di bawah ini:"}
+                    {" di bot, lalu masukkan kodenya di bawah ini:"}
                   </p>
                   <div className="flex gap-1.5">
                     <input
@@ -2316,16 +2374,18 @@ export default function MobileDashboard({
                       value={telegramCode}
                       onChange={(e) => setTelegramCode(e.target.value.toUpperCase())}
                       maxLength={6}
-                      className="flex-1 bg-surface dark:bg-zinc-950 border border-separator/35 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-center text-xs font-black placeholder-secondary/70 uppercase tracking-widest text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
+                      className="flex-1 bg-surface dark:bg-zinc-955 border border-separator/35 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-center text-xs font-black placeholder-secondary/70 uppercase tracking-widest text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
                     />
-                    <button
-                      type="button"
-                      disabled={telegramLoading}
-                      onClick={handleLinkTelegram}
-                      className="px-3 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
-                    >
-                      {telegramLoading ? "..." : "Link"}
-                    </button>
+                    {telegramCode.trim().length > 0 && (
+                      <button
+                        type="button"
+                        disabled={telegramLoading}
+                        onClick={handleLinkTelegram}
+                        className="px-3 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition animate-fade-in"
+                      >
+                        {telegramLoading ? "..." : "Link"}
+                      </button>
+                    )}
                   </div>
                 </div>
                 {telegramStatus && (
@@ -2348,8 +2408,6 @@ export default function MobileDashboard({
                   type="button"
                   onClick={() => {
                     if (settingName.trim()) setUserName(settingName.trim());
-                    const t = parseFloat(settingTarget);
-                    if (!isNaN(t)) setSavingsTarget(t);
                     setShowSettingsModal(false);
                   }}
                   className="flex-1 py-3.5 rounded-2xl bg-violet text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition"
@@ -2363,9 +2421,9 @@ export default function MobileDashboard({
                   <button
                     type="button"
                     onClick={onLogout}
-                    className="w-full py-3.5 rounded-2xl bg-red/10 hover:bg-red/15 text-red font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition"
+                    className="w-full py-3.5 rounded-2xl bg-red/10 hover:bg-red/15 text-red font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition"
                   >
-                    Keluar dari Akun
+                    <span>🚪 Keluar dari Akun</span>
                   </button>
                 </div>
               )}
