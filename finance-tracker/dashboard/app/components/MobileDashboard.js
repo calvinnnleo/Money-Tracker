@@ -1018,7 +1018,7 @@ export default function MobileDashboard({
                   <MiniDonut segments={donutSegments} size={36} />
                 </div>
 
-                 {/* Top 3 categories */}
+                {/* Top categories with progress bars for all */}
                 <div className="space-y-2.5">
                   {categoryData.filter(c => c.spent > 0).length === 0 ? (
                     <div className="text-center py-6">
@@ -1029,13 +1029,19 @@ export default function MobileDashboard({
                       </p>
                     </div>
                   ) : (
-                    [...categoryData]
-                      .filter(c => c.spent > 0)
-                      .sort((a, b) => b.spent - a.spent)
-                      .slice(0, 3)
-                      .map((c, idx) => {
-                        const pct = c.budget ? Math.min((c.spent / c.budget) * 100, 100) : 0;
+                    (() => {
+                      const activeCategories = [...categoryData]
+                        .filter(c => c.spent > 0)
+                        .sort((a, b) => b.spent - a.spent)
+                        .slice(0, 4);
+                      const maxSpent = activeCategories[0]?.spent || 1;
+
+                      return activeCategories.map((c, idx) => {
+                        const pct = c.budget > 0
+                          ? Math.min((c.spent / c.budget) * 100, 100)
+                          : (maxSpent > 0 ? (c.spent / maxSpent) * 100 : 0);
                         const catColor = COLORS[c.category] || "#8E8E93";
+
                         return (
                           <div key={c.category} className={`animate-slide-up stagger-${idx + 1}`} style={{ opacity: 0, animationFillMode: "forwards" }}>
                             <div className="flex items-center justify-between mb-1">
@@ -1045,20 +1051,19 @@ export default function MobileDashboard({
                               </div>
                               <span className="text-[10px] font-bold text-secondary">{formatRupiah(c.spent)}</span>
                             </div>
-                            {c.budget > 0 && (
-                              <div className="h-1.5 bg-separator/40 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-all duration-700"
-                                  style={{
-                                    width: `${pct}%`,
-                                    backgroundColor: catColor,
-                                  }}
-                                />
-                              </div>
-                            )}
+                            <div className="h-1.5 bg-separator/40 dark:bg-zinc-800/80 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-700"
+                                style={{
+                                  width: `${Math.max(pct, 3)}%`,
+                                  backgroundColor: catColor,
+                                }}
+                              />
+                            </div>
                           </div>
                         );
-                      })
+                      });
+                    })()
                   )}
                 </div>
 
@@ -1506,9 +1511,11 @@ export default function MobileDashboard({
                       </span>
                     </div>
                     <h3 className="text-2xl font-black text-ink tracking-tight">
-                      {formatCompact(stats.dailyAvg)}
+                      {formatRupiah(stats.dailyAvg)}
                     </h3>
-                    <p className="text-secondary text-[8px] font-bold mt-1">Rata-rata pengeluaran harian</p>
+                    <p className="text-secondary text-[8px] font-bold mt-1">
+                      Rata-rata {stats.elapsedDays || 1} hari ({shortMonthLabel})
+                    </p>
                   </div>
 
                   {/* MoM Change - With previous month existence validation */}
@@ -1519,11 +1526,11 @@ export default function MobileDashboard({
                         vs Bulan Lalu
                       </span>
                     </div>
-                    {stats.currentSpent === 0 ? (
-                      <div className="mt-1">
-                        <span className="text-[11px] font-bold text-secondary">Belum ada data</span>
-                        <p className="text-[7.5px] text-secondary/70 font-semibold mt-0.5 leading-tight">
-                          Belum ada transaksi tercatat di bulan ini.
+                    {!stats.hasPrevSpent ? (
+                      <div>
+                        <h3 className="text-2xl font-black text-secondary tracking-tight">-</h3>
+                        <p className="text-secondary text-[8px] font-bold mt-1">
+                          Belum ada data bulan lalu
                         </p>
                       </div>
                     ) : (
@@ -1536,9 +1543,7 @@ export default function MobileDashboard({
                           {stats.momDiff <= 0 ? "▼" : "▲"} {Math.abs(Math.round(stats.momPercentage))}%
                         </h3>
                         <p className="text-secondary text-[8px] font-bold mt-1">
-                          {stats.prevSpent === 0 
-                            ? "vs Rp0 bulan lalu" 
-                            : (stats.momDiff <= 0 ? "Lebih hemat" : "Lebih boros")}
+                          {stats.momDiff <= 0 ? "Lebih hemat dibanding bulan lalu" : "Lebih boros dibanding bulan lalu"}
                         </p>
                       </div>
                     )}

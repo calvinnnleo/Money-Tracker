@@ -391,8 +391,9 @@ export default function Page() {
     const prevSpent = previousTxs.filter((t) => t.type === "Expense").reduce((sum, t) => sum + t.amount, 0);
     const currentIncome = currentTxs.filter((t) => t.type === "Income").reduce((sum, t) => sum + t.amount, 0);
 
+    const hasPrevSpent = prevSpent > 0;
     const momDiff = currentSpent - prevSpent;
-    const momPercentage = prevSpent ? (momDiff / prevSpent) * 100 : (currentSpent > 0 ? 100 : 0);
+    const momPercentage = hasPrevSpent ? (momDiff / prevSpent) * 100 : null;
 
     const elapsedDays = getElapsedDaysInMonth(selectedMonth);
     const dailyAvg = currentSpent / (elapsedDays || 1);
@@ -415,7 +416,7 @@ export default function Page() {
     const categoryMoM = Object.entries(currentCats).map(([cat, amount]) => {
       const pAmount = prevCats[cat] || 0;
       const diff = amount - pAmount;
-      const pct = pAmount ? (diff / pAmount) * 100 : 0;
+      const pct = pAmount > 0 ? (diff / pAmount) * 100 : null;
       return {
         category: cat,
         current: amount,
@@ -428,8 +429,10 @@ export default function Page() {
     return {
       currentSpent,
       prevSpent,
+      hasPrevSpent,
       momDiff,
       momPercentage,
+      elapsedDays,
       dailyAvg,
       savingsRate,
       largestCategory,
