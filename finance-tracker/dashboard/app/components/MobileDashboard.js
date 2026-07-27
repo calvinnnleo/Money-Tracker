@@ -610,7 +610,8 @@ export default function MobileDashboard({
   }, [filteredTxs, sortOrder]);
 
   // Summaries
-  const totalBudgetLimit = (data.budgets || []).reduce((sum, b) => sum + b.budget, 0) || 1;
+  const realTotalBudgetAllocated = (data.budgets || []).reduce((sum, b) => sum + b.budget, 0);
+  const totalBudgetLimit = realTotalBudgetAllocated || 1;
   const totalBudgetPct = Math.min(Math.round((monthlyData.expense / totalBudgetLimit) * 100), 100);
   const balance = monthlyData.income - monthlyData.expense;
 
@@ -819,8 +820,8 @@ export default function MobileDashboard({
                       <p className="text-secondary text-[8px] font-bold mt-1 uppercase tracking-wide">Sisa Saldo Kas</p>
                     </div>
 
-                    {/* Sub-row of Masuk, Keluar & Total Budget */}
-                    <div className="flex items-center justify-between pt-2.5 border-t border-violet/10">
+                    {/* Sub-row of Masuk & Keluar */}
+                    <div className="flex items-center justify-around pt-2.5 border-t border-violet/10">
                       <div>
                         <div className="flex items-center gap-1 text-[8px] font-bold text-green uppercase tracking-wider">
                           <TrendingUp className="w-2.5 h-2.5" />
@@ -840,18 +841,6 @@ export default function MobileDashboard({
                         </div>
                         <p className="text-xs font-black text-ink mt-0.5">
                           {formatCompact(monthlyData.expense)}
-                        </p>
-                      </div>
-
-                      <div className="border-l border-violet/10 h-5"></div>
-
-                      <div>
-                        <div className="flex items-center gap-1 text-[8px] font-bold text-violet uppercase tracking-wider">
-                          <PiggyBank className="w-2.5 h-2.5" />
-                          <span>Budget</span>
-                        </div>
-                        <p className="text-xs font-black text-ink mt-0.5">
-                          {formatCompact(totalBudgetLimit)}
                         </p>
                       </div>
                     </div>
@@ -1100,6 +1089,52 @@ export default function MobileDashboard({
                 <Plus className="w-3.5 h-3.5" />
                 <span>Kategori</span>
               </button>
+            </div>
+
+            {/* Income Allocation Summary Card */}
+            <div className="bg-surface border border-separator/30 rounded-3xl p-4 shadow-card mb-5">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-extrabold text-secondary uppercase tracking-wider">
+                  Alokasi Budget vs Pemasukan
+                </span>
+                <span
+                  className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                    realTotalBudgetAllocated > monthlyData.income && monthlyData.income > 0
+                      ? "bg-red/10 text-red"
+                      : "bg-violet/10 text-violet"
+                  }`}
+                >
+                  {monthlyData.income > 0
+                    ? `${Math.round((realTotalBudgetAllocated / monthlyData.income) * 100)}% Dialokasikan`
+                    : "Belum ada pemasukan"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 my-2.5 py-2 border-y border-separator/20">
+                <div>
+                  <span className="text-[8px] text-secondary font-bold uppercase tracking-wider block">Total Pemasukan</span>
+                  <p className="text-sm font-black text-ink">{formatRupiah(monthlyData.income)}</p>
+                </div>
+                <div>
+                  <span className="text-[8px] text-secondary font-bold uppercase tracking-wider block">Sisa Alokasi Budget</span>
+                  <p className={`text-sm font-black ${monthlyData.income - realTotalBudgetAllocated < 0 ? "text-red" : "text-green"}`}>
+                    {formatRupiah(Math.max(monthlyData.income - realTotalBudgetAllocated, 0))}
+                  </p>
+                </div>
+              </div>
+
+              {monthlyData.income > 0 && (
+                <div className="w-full bg-separator/30 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      realTotalBudgetAllocated > monthlyData.income ? "bg-red" : "bg-violet"
+                    }`}
+                    style={{
+                      width: `${Math.min((realTotalBudgetAllocated / monthlyData.income) * 100, 100)}%`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Unified Category Budget Card */}
@@ -1811,153 +1846,85 @@ export default function MobileDashboard({
       {/* ══════════════════════════════════════════════════════════════════════ */}
 
       {/* Modal 1: Tambah Kategori */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
-          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-black text-sm uppercase tracking-wider">Tambah Kategori</h3>
-              <button 
-                onClick={() => setShowAddModal(false)}
-                className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition"
-              >
-                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Nama Kategori</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Kos, Belanja Bulanan"
-                  value={newCatName}
-                  onChange={(e) => setNewCatName(e.target.value)}
-                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100 placeholder-secondary/70"
-                />
+      {showAddModal && (() => {
+        const maxAvailableForNew = monthlyData.income > 0 ? Math.max(monthlyData.income - realTotalBudgetAllocated, 0) : Infinity;
+        return (
+          <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+            <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-black text-sm uppercase tracking-wider">Tambah Kategori</h3>
+                <button 
+                  onClick={() => setShowAddModal(false)}
+                  className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition"
+                >
+                  <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+                </button>
               </div>
 
-              <div>
-                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Batas Budget Bulanan</label>
-                <input
-                  type="number"
-                  placeholder="Rp0"
-                  value={newCatBudget}
-                  onChange={(e) => setNewCatBudget(e.target.value)}
-                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100 placeholder-secondary/70"
-                />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Pilih Emoji</label>
-                <div className="flex items-center gap-3 bg-[#F2F2F7] dark:bg-zinc-900 p-3 rounded-2xl border border-separator/20 dark:border-zinc-800">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Nama Kategori</label>
                   <input
                     type="text"
-                    maxLength={2}
-                    value={newCatEmoji}
-                    onChange={(e) => setNewCatEmoji(e.target.value)}
-                    className="w-12 h-12 text-center text-xl bg-white dark:bg-zinc-800 border border-separator/50 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-violet focus:outline-none font-bold text-ink dark:text-zinc-100"
-                    placeholder=""
+                    placeholder="e.g. Kos, Belanja Bulanan"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100 placeholder-secondary/70"
                   />
-                  <div className="flex-1">
-                    <span className="text-[8px] text-secondary dark:text-zinc-400 font-extrabold uppercase tracking-wider block mb-1">Ketik emoji atau pilih preset:</span>
-                    <div className="flex gap-1.5">
-                      {["🍔", "🚗", "🛍️", "📱", "🎮", "📌"].map(em => (
-                        <button
-                          key={em}
-                          type="button"
-                          onClick={() => setNewCatEmoji(em)}
-                          className={`w-6 h-6 rounded-md text-xs flex items-center justify-center transition-all ${
-                            newCatEmoji === em 
-                              ? "bg-violet/10 ring-1 ring-violet scale-105" 
-                              : "bg-white dark:bg-zinc-800 border border-separator/30 dark:border-zinc-700 active:scale-90"
-                          }`}
-                        >
-                          {em}
-                        </button>
-                      ))}
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Batas Budget Bulanan</label>
+                  <input
+                    type="number"
+                    placeholder="Rp0"
+                    value={newCatBudget}
+                    onChange={(e) => setNewCatBudget(e.target.value)}
+                    className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100 placeholder-secondary/70"
+                  />
+                  <p className="text-[8.5px] font-bold text-secondary dark:text-zinc-400 mt-1 pl-0.5">
+                    {monthlyData.income > 0 
+                      ? `💡 Sisa pemasukan tersedia: ${formatRupiah(maxAvailableForNew)}` 
+                      : "⚠️ Belum ada pemasukan bulan ini"}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Pilih Emoji</label>
+                  <div className="flex items-center gap-3 bg-[#F2F2F7] dark:bg-zinc-900 p-3 rounded-2xl border border-separator/20 dark:border-zinc-800">
+                    <input
+                      type="text"
+                      maxLength={2}
+                      value={newCatEmoji}
+                      onChange={(e) => setNewCatEmoji(e.target.value)}
+                      className="w-12 h-12 text-center text-xl bg-white dark:bg-zinc-800 border border-separator/50 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-violet focus:outline-none font-bold text-ink dark:text-zinc-100"
+                      placeholder=""
+                    />
+                    <div className="flex-1">
+                      <span className="text-[8px] text-secondary dark:text-zinc-400 font-extrabold uppercase tracking-wider block mb-1">Ketik emoji atau pilih preset:</span>
+                      <div className="flex gap-1.5">
+                        {["🍔", "🚗", "🛍️", "📱", "🎮", "📌"].map(em => (
+                          <button
+                            key={em}
+                            type="button"
+                            onClick={() => setNewCatEmoji(em)}
+                            className={`w-6 h-6 rounded-md text-xs flex items-center justify-center transition-all ${
+                              newCatEmoji === em 
+                                ? "bg-violet/10 ring-1 ring-violet scale-105" 
+                                : "bg-white dark:bg-zinc-800 border border-separator/30 dark:border-zinc-700 active:scale-90"
+                            }`}
+                          >
+                            {em}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="pt-2 flex gap-2">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-3.5 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary dark:text-zinc-300 font-bold text-xs uppercase tracking-wider active:scale-95 transition"
-                >
-                  Batal
-                </button>
-                <button
-                  disabled={isSubmitting}
-                  onClick={async () => {
-                    if (isSubmitting) return;
-                    if (!newCatName.trim()) return;
-                    const amount = parseFloat(newCatBudget) || 0;
-                    const finalEmoji = newCatEmoji.trim() || "📌";
-                    setIsSubmitting(true);
-                    try {
-                      await onAddBudget(newCatName.trim(), amount);
-                      saveCustomEmoji(newCatName.trim(), finalEmoji);
-                      setShowAddModal(false);
-                    } catch (e) {
-                      console.error("Gagal menambahkan kategori:", e);
-                    } finally {
-                      setIsSubmitting(false);
-                    }
-                  }}
-                  className="flex-1 py-3.5 rounded-2xl bg-violet disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-glow-red"
-                  style={{ shadowColor: "#AF52DE" }}
-                >
-                  {isSubmitting ? "..." : "Simpan"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal 2: Edit / Setup Budget */}
-      {editingCategory && (
-        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
-          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-black text-sm uppercase tracking-wider">Atur Budget</h3>
-              <button 
-                onClick={() => setEditingCategory(null)}
-                className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition"
-              >
-                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 flex items-center justify-center text-xl shadow-sm">
-                  {getCategoryEmoji(editingCategory.category)}
-                </div>
-                <div>
-                  <h4 className="font-bold text-ink dark:text-zinc-100 text-xs">{editingCategory.category}</h4>
-                  <p className="text-[9px] text-secondary dark:text-zinc-400 font-semibold mt-0.5">
-                    Terpakai: {formatRupiah(editingCategory.spent)}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Batas Anggaran Bulanan</label>
-                <input
-                  type="number"
-                  placeholder="Rp0"
-                  value={editBudgetAmount}
-                  onChange={(e) => setEditBudgetAmount(e.target.value)}
-                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100 placeholder-secondary/70"
-                />
-              </div>
-
-              <div className="pt-2 flex flex-col gap-2">
-                <div className="flex gap-2">
+                <div className="pt-2 flex gap-2">
                   <button
-                    onClick={() => setEditingCategory(null)}
+                    onClick={() => setShowAddModal(false)}
                     className="flex-1 py-3.5 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary dark:text-zinc-300 font-bold text-xs uppercase tracking-wider active:scale-95 transition"
                   >
                     Batal
@@ -1966,38 +1933,132 @@ export default function MobileDashboard({
                     disabled={isSubmitting}
                     onClick={async () => {
                       if (isSubmitting) return;
-                      const amount = parseFloat(editBudgetAmount) || 0;
+                      if (!newCatName.trim()) return;
+                      const amount = parseFloat(newCatBudget) || 0;
+                      if (monthlyData.income > 0 && amount > maxAvailableForNew) {
+                        alert(`Batas budget (${formatRupiah(amount)}) melebihi sisa pemasukan bulan ini (${formatRupiah(maxAvailableForNew)})!`);
+                        return;
+                      }
+                      const finalEmoji = newCatEmoji.trim() || "📌";
                       setIsSubmitting(true);
                       try {
-                        await onAddBudget(editingCategory.category, amount);
-                        setEditingCategory(null);
+                        await onAddBudget(newCatName.trim(), amount);
+                        saveCustomEmoji(newCatName.trim(), finalEmoji);
+                        setShowAddModal(false);
                       } catch (e) {
-                        console.error("Gagal memperbarui budget:", e);
+                        console.error("Gagal menambahkan kategori:", e);
                       } finally {
                         setIsSubmitting(false);
                       }
                     }}
-                    className="flex-1 py-3.5 rounded-2xl bg-violet disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition"
+                    className="flex-1 py-3.5 rounded-2xl bg-violet disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-glow-red"
+                    style={{ shadowColor: "#AF52DE" }}
                   >
                     {isSubmitting ? "..." : "Simpan"}
                   </button>
                 </div>
-                
-                <button
-                  onClick={() => {
-                    onDeleteBudget(editingCategory.category);
-                    setEditingCategory(null);
-                  }}
-                  className="w-full py-3.5 rounded-2xl bg-red/10 hover:bg-red/15 text-red font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Hapus Kategori</span>
-                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* Modal 2: Edit / Setup Budget */}
+      {editingCategory && (() => {
+        const currentCatBudget = editingCategory.budget || 0;
+        const otherAllocated = realTotalBudgetAllocated - currentCatBudget;
+        const maxAvailableForEdit = monthlyData.income > 0 ? Math.max(monthlyData.income - otherAllocated, 0) : Infinity;
+        return (
+          <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+            <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-black text-sm uppercase tracking-wider">Atur Budget</h3>
+                <button 
+                  onClick={() => setEditingCategory(null)}
+                  className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition"
+                >
+                  <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 flex items-center justify-center text-xl shadow-sm">
+                    {getCategoryEmoji(editingCategory.category)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-ink dark:text-zinc-100 text-xs">{editingCategory.category}</h4>
+                    <p className="text-[9px] text-secondary dark:text-zinc-400 font-semibold mt-0.5">
+                      Terpakai: {formatRupiah(editingCategory.spent)}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Batas Anggaran Bulanan</label>
+                  <input
+                    type="number"
+                    placeholder="Rp0"
+                    value={editBudgetAmount}
+                    onChange={(e) => setEditBudgetAmount(e.target.value)}
+                    className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100 placeholder-secondary/70"
+                  />
+                  <p className="text-[8.5px] font-bold text-secondary dark:text-zinc-400 mt-1 pl-0.5">
+                    {monthlyData.income > 0 
+                      ? `💡 Maksimal alokasi untuk kategori ini: ${formatRupiah(maxAvailableForEdit)}` 
+                      : "⚠️ Belum ada pemasukan bulan ini"}
+                  </p>
+                </div>
+
+                <div className="pt-2 flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingCategory(null)}
+                      className="flex-1 py-3.5 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary dark:text-zinc-300 font-bold text-xs uppercase tracking-wider active:scale-95 transition"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      disabled={isSubmitting}
+                      onClick={async () => {
+                        if (isSubmitting) return;
+                        const amount = parseFloat(editBudgetAmount) || 0;
+                        if (monthlyData.income > 0 && amount > maxAvailableForEdit) {
+                          alert(`Batas budget (${formatRupiah(amount)}) melebihi sisa alokasi pemasukan bulan ini (${formatRupiah(maxAvailableForEdit)})!`);
+                          return;
+                        }
+                        setIsSubmitting(true);
+                        try {
+                          await onAddBudget(editingCategory.category, amount);
+                          setEditingCategory(null);
+                        } catch (e) {
+                          console.error("Gagal memperbarui budget:", e);
+                        } finally {
+                          setIsSubmitting(false);
+                        }
+                      }}
+                      className="flex-1 py-3.5 rounded-2xl bg-violet disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition"
+                    >
+                      {isSubmitting ? "..." : "Simpan"}
+                    </button>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      onDeleteBudget(editingCategory.category);
+                      setEditingCategory(null);
+                    }}
+                    className="w-full py-3.5 rounded-2xl bg-red/10 hover:bg-red/15 text-red font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus Kategori</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Modal 3: Tambah Transaksi */}
       {showAddTxModal && (
