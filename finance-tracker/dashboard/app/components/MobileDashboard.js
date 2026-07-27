@@ -38,6 +38,8 @@ import {
   Plus,
   Trash2,
   Edit2,
+  Camera,
+  LogOut,
 } from "lucide-react";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -387,18 +389,38 @@ export default function MobileDashboard({
     }
   };
 
-  const [userAvatar, setUserAvatar] = useState(() => {
+  const [userAvatarImage, setUserAvatarImage] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("saved_user_avatar") || "👤";
+      return localStorage.getItem("saved_user_avatar_image") || null;
     }
-    return "👤";
+    return null;
   });
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("saved_user_avatar", userAvatar);
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Ukuran foto maksimal 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Data = event.target.result;
+        setUserAvatarImage(base64Data);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("saved_user_avatar_image", base64Data);
+        }
+      };
+      reader.readAsDataURL(file);
     }
-  }, [userAvatar]);
+  };
+
+  const handleRemoveAvatar = () => {
+    setUserAvatarImage(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("saved_user_avatar_image");
+    }
+  };
 
   const handleUnlinkTelegram = async () => {
     if (!confirm("Apakah Anda yakin ingin memutuskan hubungan akun Telegram?")) return;
@@ -802,9 +824,13 @@ export default function MobileDashboard({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowSettingsModal(true)}
-                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#1C1C1E] to-[#3A3A3C] dark:from-[#3A3A3C] dark:to-[#555] text-white flex items-center justify-center font-extrabold shadow-float text-lg active:scale-95 transition shrink-0"
+                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#1C1C1E] to-[#3A3A3C] dark:from-[#3A3A3C] dark:to-[#555] text-white flex items-center justify-center font-extrabold shadow-float text-xs active:scale-95 transition shrink-0 overflow-hidden"
                 >
-                  {userAvatar || (userName ? userName.slice(0, 2).toUpperCase() : "CL")}
+                  {userAvatarImage ? (
+                    <img src={userAvatarImage} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{userName ? userName.slice(0, 2).toUpperCase() : "CL"}</span>
+                  )}
                 </button>
                 <div>
                   <p className="text-[10px] text-secondary dark:text-zinc-400 font-bold uppercase tracking-wider">
@@ -2250,27 +2276,46 @@ export default function MobileDashboard({
             </div>
 
             <div className="space-y-4">
-              {/* Profile Picture / Avatar Header */}
+              {/* Profile Picture / Gallery Upload */}
               <div className="flex flex-col items-center bg-[#F2F2F7] dark:bg-zinc-900/80 p-4 rounded-3xl border border-separator/20 dark:border-zinc-800">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet/20 to-purple-500/30 border-2 border-violet/30 flex items-center justify-center text-3xl shadow-inner mb-2.5">
-                  {userAvatar}
+                <div className="relative group mb-2.5">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet/20 to-purple-500/30 border-2 border-violet/30 flex items-center justify-center overflow-hidden shadow-inner text-xl font-black text-ink dark:text-zinc-100">
+                    {userAvatarImage ? (
+                      <img src={userAvatarImage} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{userName ? userName.slice(0, 2).toUpperCase() : "CL"}</span>
+                    )}
+                  </div>
+                  <label className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-violet text-white flex items-center justify-center shadow-md cursor-pointer hover:scale-105 active:scale-95 transition">
+                    <Camera className="w-3.5 h-3.5" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
-                <span className="text-[9px] font-extrabold text-secondary uppercase tracking-wider mb-1.5">Pilih Avatar Profil</span>
-                <div className="flex gap-1.5 overflow-x-auto scrollbar-none max-w-full pb-1 px-1">
-                  {["👤", "👨‍💻", "👩‍💻", "🦁", "🦊", "🐱", "🚀", "⚡", "👑", "🎯"].map((av) => (
+
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-extrabold text-violet bg-violet/10 hover:bg-violet/20 px-3 py-1.5 rounded-xl cursor-pointer transition">
+                    📷 Pilih dari Galeri
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  {userAvatarImage && (
                     <button
-                      key={av}
                       type="button"
-                      onClick={() => setUserAvatar(av)}
-                      className={`w-7 h-7 rounded-xl text-sm flex items-center justify-center transition-all ${
-                        userAvatar === av
-                          ? "bg-violet text-white scale-110 shadow-sm"
-                          : "bg-white dark:bg-zinc-800 border border-separator/30 active:scale-90"
-                      }`}
+                      onClick={handleRemoveAvatar}
+                      className="text-[10px] font-bold text-red bg-red/10 hover:bg-red/20 px-2.5 py-1.5 rounded-xl transition"
                     >
-                      {av}
+                      Hapus
                     </button>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -2320,7 +2365,7 @@ export default function MobileDashboard({
                           setShowPasswordFields(false);
                           setPasswordStatus(null);
                         }}
-                        className="flex-1 py-2 bg-white dark:bg-zinc-800 border border-separator/25 dark:border-zinc-700 text-secondary dark:text-zinc-300 font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
+                        className="flex-1 py-2 bg-[#F2F2F7] dark:bg-zinc-800 border border-separator/25 dark:border-zinc-700 text-secondary dark:text-zinc-300 font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
                       >
                         Batal
                       </button>
@@ -2346,7 +2391,7 @@ export default function MobileDashboard({
               <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
                 <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Integrasi Telegram</span>
                 {telegramId ? (
-                  <div className="bg-white dark:bg-zinc-800 p-2.5 rounded-xl border border-green/30 flex items-center justify-between">
+                  <div className="bg-white dark:bg-zinc-800 p-3 rounded-xl border border-green/30 flex items-center justify-between">
                     <span className="text-[10px] font-bold text-green flex items-center gap-1">
                       <span>✅ Terhubung ID: {String(telegramId)}</span>
                     </span>
@@ -2354,40 +2399,38 @@ export default function MobileDashboard({
                       type="button"
                       disabled={telegramLoading}
                       onClick={handleUnlinkTelegram}
-                      className="px-2 py-1 bg-red/10 hover:bg-red/20 text-red font-bold text-[9px] uppercase tracking-wider rounded-lg transition"
+                      className="px-2.5 py-1 bg-red/10 hover:bg-red/20 text-red font-extrabold text-[9px] uppercase tracking-wider rounded-lg transition"
                     >
-                      {telegramLoading ? "..." : "🔌 Unlink"}
+                      {telegramLoading ? "..." : "Unlink"}
                     </button>
                   </div>
-                ) : null}
-
-                <div className="space-y-2">
-                  <p className="text-[10px] text-secondary dark:text-zinc-400 leading-normal">
-                    {telegramId ? "Ingin menghubungkan akun Telegram lain? Ketik " : "Ketik "}
-                    <code className="px-1 py-0.5 rounded bg-[#E5E5EA] dark:bg-zinc-800 text-violet font-mono text-[9px]">/link</code>
-                    {" di bot, lalu masukkan kodenya di bawah ini:"}
-                  </p>
-                  <div className="flex gap-1.5">
-                    <input
-                      type="text"
-                      placeholder="XXXXXX"
-                      value={telegramCode}
-                      onChange={(e) => setTelegramCode(e.target.value.toUpperCase())}
-                      maxLength={6}
-                      className="flex-1 bg-surface dark:bg-zinc-955 border border-separator/35 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-center text-xs font-black placeholder-secondary/70 uppercase tracking-widest text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
-                    />
-                    {telegramCode.trim().length > 0 && (
-                      <button
-                        type="button"
-                        disabled={telegramLoading}
-                        onClick={handleLinkTelegram}
-                        className="px-3 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition animate-fade-in"
-                      >
-                        {telegramLoading ? "..." : "Link"}
-                      </button>
-                    )}
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-secondary dark:text-zinc-400 leading-normal">
+                      Ketik <code className="px-1 py-0.5 rounded bg-[#E5E5EA] dark:bg-zinc-800 text-violet font-mono text-[9px]">/link</code> di bot Telegram, lalu masukkan kodenya di bawah ini:
+                    </p>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="XXXXXX"
+                        value={telegramCode}
+                        onChange={(e) => setTelegramCode(e.target.value.toUpperCase())}
+                        maxLength={6}
+                        className="flex-1 bg-surface dark:bg-zinc-955 border border-separator/35 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-center text-xs font-black placeholder-secondary/70 uppercase tracking-widest text-ink dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-violet"
+                      />
+                      {telegramCode.trim().length > 0 && (
+                        <button
+                          type="button"
+                          disabled={telegramLoading}
+                          onClick={handleLinkTelegram}
+                          className="px-3 bg-violet hover:bg-violet/90 disabled:opacity-50 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition animate-fade-in"
+                        >
+                          {telegramLoading ? "..." : "Link"}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
                 {telegramStatus && (
                   <p className={`text-[9px] font-bold leading-normal mt-1 ${telegramStatus.type === "success" ? "text-green" : "text-red"}`}>
                     {telegramStatus.msg}
@@ -2421,9 +2464,10 @@ export default function MobileDashboard({
                   <button
                     type="button"
                     onClick={onLogout}
-                    className="w-full py-3.5 rounded-2xl bg-red/10 hover:bg-red/15 text-red font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition"
+                    className="w-full py-3.5 rounded-2xl bg-red/10 hover:bg-red/15 text-red font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition border border-red/20"
                   >
-                    <span>🚪 Keluar dari Akun</span>
+                    <LogOut className="w-4 h-4 text-red" />
+                    <span>Keluar</span>
                   </button>
                 </div>
               )}
