@@ -1890,34 +1890,31 @@ export default function MobileDashboard({
                 </div>
 
                 <div>
-                  <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Pilih Emoji</label>
-                  <div className="flex items-center gap-3 bg-[#F2F2F7] dark:bg-zinc-900 p-3 rounded-2xl border border-separator/20 dark:border-zinc-800">
-                    <input
-                      type="text"
-                      maxLength={2}
-                      value={newCatEmoji}
+                  <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Pilih Emoji / Ikon</label>
+                  <div className="relative">
+                    <select
+                      value={newCatEmoji || "🍔"}
                       onChange={(e) => setNewCatEmoji(e.target.value)}
-                      className="w-12 h-12 text-center text-xl bg-white dark:bg-zinc-800 border border-separator/50 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-violet focus:outline-none font-bold text-ink dark:text-zinc-100"
-                      placeholder=""
-                    />
-                    <div className="flex-1">
-                      <span className="text-[8px] text-secondary dark:text-zinc-400 font-extrabold uppercase tracking-wider block mb-1">Ketik emoji atau pilih preset:</span>
-                      <div className="flex gap-1.5">
-                        {["🍔", "🚗", "🛍️", "📱", "🎮", "📌"].map(em => (
-                          <button
-                            key={em}
-                            type="button"
-                            onClick={() => setNewCatEmoji(em)}
-                            className={`w-6 h-6 rounded-md text-xs flex items-center justify-center transition-all ${
-                              newCatEmoji === em 
-                                ? "bg-violet/10 ring-1 ring-violet scale-105" 
-                                : "bg-white dark:bg-zinc-800 border border-separator/30 dark:border-zinc-700 active:scale-90"
-                            }`}
-                          >
-                            {em}
-                          </button>
-                        ))}
-                      </div>
+                      className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl px-4 py-3.5 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition appearance-none cursor-pointer text-ink dark:text-zinc-100 pr-10"
+                    >
+                      <option value="🍔">🍔 Makanan & Minuman</option>
+                      <option value="🚗">🚗 Transportasi & Bensin</option>
+                      <option value="🛍️">🛍️ Belanja & Shopping</option>
+                      <option value="📱">📱 Tagihan, Internet & Pulsa</option>
+                      <option value="🎮">🎮 Hiburan & Hobi</option>
+                      <option value="🏠">🏠 Rumah & Kos</option>
+                      <option value="💊">💊 Kesehatan & Obat</option>
+                      <option value="📚">📚 Pendidikan & Buku</option>
+                      <option value="📈">📈 Investasi & Tabungan</option>
+                      <option value="🎁">🎁 Donasi & Hadiah</option>
+                      <option value="☕">☕ Kopi & Kafe</option>
+                      <option value="🛒">🛒 Supermarket & Sembako</option>
+                      <option value="⚡">⚡ Listrik & Air</option>
+                      <option value="✈️">✈️ Travel & Liburan</option>
+                      <option value="📌">📌 Lainnya</option>
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-secondary">
+                      <ChevronRight className="w-4 h-4 rotate-90 text-secondary" />
                     </div>
                   </div>
                 </div>
