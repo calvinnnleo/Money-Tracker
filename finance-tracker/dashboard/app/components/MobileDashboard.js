@@ -701,7 +701,9 @@ export default function MobileDashboard({
   const realTotalBudgetAllocated = (data.budgets || []).reduce((sum, b) => sum + b.budget, 0);
   const totalBudgetLimit = realTotalBudgetAllocated || 1;
   const totalBudgetPct = Math.min(Math.round((monthlyData.expense / totalBudgetLimit) * 100), 100);
-  const balance = monthlyData.income - monthlyData.expense;
+  const balance = monthlyData.cumulativeBalance !== undefined
+    ? monthlyData.cumulativeBalance
+    : (monthlyData.income - monthlyData.expense);
 
   // Budget health
   const budgetColor =
