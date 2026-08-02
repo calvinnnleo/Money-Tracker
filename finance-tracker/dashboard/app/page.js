@@ -130,7 +130,18 @@ export default function Page() {
     const savedTarget = localStorage.getItem("saved_savings_target");
     if (savedTarget) setSavingsTarget(parseFloat(savedTarget) || 2000000);
 
-
+    // Load cached server transactions from localStorage (persists across months)
+    const savedServerTxs = localStorage.getItem("saved_server_transactions");
+    if (savedServerTxs) {
+      try {
+        const parsed = JSON.parse(savedServerTxs);
+        if (Array.isArray(parsed)) {
+          setData(prev => ({ ...prev, transactions: parsed }));
+        }
+      } catch (e) {
+        console.error("Failed to parse saved_server_transactions", e);
+      }
+    }
 
     const savedLocalTxs = localStorage.getItem("saved_local_transactions");
     if (savedLocalTxs) {
@@ -179,6 +190,9 @@ export default function Page() {
       })
       .then((d) => {
         if (d && !d.error && Array.isArray(d.transactions)) {
+          // Cache server transactions to localStorage so they persist across months & offline sessions
+          localStorage.setItem("saved_server_transactions", JSON.stringify(d.transactions));
+
           setData(prev => {
             const sheetBudgets = d.budgets || [];
             const mergedBudgets = [...prev.budgets];
@@ -206,7 +220,9 @@ export default function Page() {
         }
       })
       .catch((err) => {
-        console.warn("API Offline / Belum siap. Berjalan menggunakan Local Mock Data untuk Front-End dev.");
+        console.warn("API Offline / Belum siap. Menggunakan data cache dari localStorage.");
+        // Transaksi dari server sudah di-load dari localStorage di useEffect init di atas
+        // sehingga data tetap tampil meskipun offline
       })
       .finally(() => {
         setLoading(false);
@@ -456,10 +472,15 @@ export default function Page() {
       });
       const resData = await res.json();
       if (resData.success && resData.transaction) {
+        const confirmedTx = resData.transaction;
         // Update temporary ID with actual database ID
         setLocalTransactions((prev) =>
-          prev.map((t) => (t.id === tempId ? resData.transaction : t))
+          prev.map((t) => (t.id === tempId ? confirmedTx : t))
         );
+        // Also cache confirmed transaction into server cache so it persists across sessions
+        const cachedRaw = localStorage.getItem("saved_server_transactions");
+        const cached = cachedRaw ? JSON.parse(cachedRaw) : [];
+        localStorage.setItem("saved_server_transactions", JSON.stringify([confirmedTx, ...cached]));
       }
     } catch (err) {
       console.error("Gagal menyimpan transaksi ke database:", err.message);
@@ -471,9 +492,12 @@ export default function Page() {
     setLocalTransactions((prev) => prev.filter((t) => t.id !== id));
     setData((prev) => {
       if (!prev || !prev.transactions) return prev;
+      const updated = prev.transactions.filter((t) => t.id !== id);
+      // Keep cache in sync so delete persists across sessions
+      localStorage.setItem("saved_server_transactions", JSON.stringify(updated));
       return {
         ...prev,
-        transactions: prev.transactions.filter((t) => t.id !== id),
+        transactions: updated,
       };
     });
 
