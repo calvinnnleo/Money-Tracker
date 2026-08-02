@@ -355,23 +355,28 @@ export default function Page() {
 
   // Filter transactions for the selected month & compute cumulative balance up to selected month
   const monthlyData = useMemo(() => {
-    if (!data) return { txs: [], income: 0, expense: 0, cumulativeBalance: 0, isCarryoverDisabled: false };
+    if (!data) return { txs: [], income: 0, expense: 0, cumulativeBalance: 0, isCarryoverDisabled: false, previousCumulativeBalance: 0 };
     const txs = allTransactions.filter((t) => t.date?.startsWith(selectedMonth));
     const income = txs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
     const expense = txs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
 
     const isCarryoverDisabled = resetCarryoverMonths.includes(selectedMonth);
 
+    // Balance accumulated from ALL months BEFORE selected month (the "savings" pot)
+    const prevTxs = allTransactions.filter((t) => t.date && t.date.slice(0, 7) < selectedMonth);
+    const prevIncome = prevTxs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
+    const prevExpense = prevTxs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
+    const previousCumulativeBalance = prevIncome - prevExpense;
+
+    // Total all-time income (for savings rate calculation)
+    const totalAllTimeIncome = allTransactions.filter((t) => t.type === "Income" && t.date && t.date.slice(0, 7) <= selectedMonth).reduce((s, t) => s + t.amount, 0);
+
     let cumulativeBalance = income - expense;
     if (!isCarryoverDisabled) {
-      // Calculate cumulative balance up to the selected month
-      const cumulativeTxs = allTransactions.filter((t) => t.date && t.date.slice(0, 7) <= selectedMonth);
-      const cumulativeIncome = cumulativeTxs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
-      const cumulativeExpense = cumulativeTxs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
-      cumulativeBalance = cumulativeIncome - cumulativeExpense;
+      cumulativeBalance = previousCumulativeBalance + (income - expense);
     }
 
-    return { txs, income, expense, cumulativeBalance, isCarryoverDisabled };
+    return { txs, income, expense, cumulativeBalance, isCarryoverDisabled, previousCumulativeBalance, totalAllTimeIncome };
   }, [allTransactions, selectedMonth, data, resetCarryoverMonths]);
 
   // Category breakdown for budgets & charts

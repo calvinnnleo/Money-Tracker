@@ -1207,6 +1207,19 @@ export default function MobileDashboard({
               </button>
             </div>
 
+            {/* Siklus Baru Banner - when carryover is reset */}
+            {monthlyData?.isCarryoverDisabled && (
+              <div className="mb-4 flex items-start gap-3 bg-orange/8 border border-orange/20 rounded-2xl px-4 py-3">
+                <RefreshCw className="w-4 h-4 text-orange mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] font-extrabold text-orange">Siklus Baru Aktif</p>
+                  <p className="text-[9.5px] text-secondary font-medium mt-0.5 leading-normal">
+                    Progres budget dihitung mulai dari Rp0 untuk siklus gajian ini. Batas pengeluaran per kategori tetap berlaku.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Income Allocation Summary Card */}
             <div className="bg-surface border border-separator/30 rounded-3xl p-4 shadow-card mb-5">
               <div className="flex justify-between items-center mb-2">
@@ -1268,22 +1281,29 @@ export default function MobileDashboard({
               ) : (
                 <div className="bg-surface rounded-3xl border border-separator/30 shadow-card overflow-hidden divide-y divide-separator/20">
                   {categoryData.map((c) => {
-                    const isOver = c.percentage >= 100;
-                    const isWarning = c.percentage >= 80 && c.percentage < 100;
                     const catColor = COLORS[c.category] || "#8E8E93";
 
-                    let statusLabel = "Aman";
-                    let statusColor = "#34C759";
-                    let barClass = "progress-fill-gradient-green";
+                    // When carryover is disabled (new cycle), show 0% spent for all categories
+                    const displaySpent = monthlyData?.isCarryoverDisabled ? 0 : c.spent;
+                    const displayPct  = monthlyData?.isCarryoverDisabled ? 0 : c.percentage;
 
-                    if (isOver) {
-                      statusLabel = "Over Budget";
-                      statusColor = "#FF3B30";
-                      barClass = "progress-fill-gradient-red";
-                    } else if (isWarning) {
-                      statusLabel = "Waspada";
-                      statusColor = "#FF9500";
-                      barClass = "progress-fill-gradient-orange";
+                    const isOver    = displayPct >= 100;
+                    const isWarning = displayPct >= 80 && displayPct < 100;
+
+                    let statusLabel = monthlyData?.isCarryoverDisabled ? "Siklus Baru" : "Aman";
+                    let statusColor = monthlyData?.isCarryoverDisabled ? "#FF9500" : "#34C759";
+                    let barClass    = monthlyData?.isCarryoverDisabled ? "progress-fill-gradient-orange" : "progress-fill-gradient-green";
+
+                    if (!monthlyData?.isCarryoverDisabled) {
+                      if (isOver) {
+                        statusLabel = "Over Budget";
+                        statusColor = "#FF3B30";
+                        barClass = "progress-fill-gradient-red";
+                      } else if (isWarning) {
+                        statusLabel = "Waspada";
+                        statusColor = "#FF9500";
+                        barClass = "progress-fill-gradient-orange";
+                      }
                     }
 
                     return (
@@ -1306,7 +1326,9 @@ export default function MobileDashboard({
                             <div>
                               <span className="font-bold text-ink text-xs">{c.category}</span>
                               <p className="text-[9px] text-secondary font-semibold mt-0.5">
-                                {formatRupiah(c.spent)}{c.budget > 0 ? ` / ${formatRupiah(c.budget)}` : ""}
+                                {monthlyData?.isCarryoverDisabled
+                                  ? <span className="text-orange font-bold">Siklus baru — Rp0</span>
+                                  : <>{formatRupiah(c.spent)}{c.budget > 0 ? ` / ${formatRupiah(c.budget)}` : ""}</>}
                               </p>
                             </div>
                           </div>
@@ -1325,16 +1347,16 @@ export default function MobileDashboard({
                           <div>
                             <div className="progress-bar mb-1.5 bg-separator/40 h-[6px] rounded-full overflow-hidden">
                               <div
-                                className={`progress-fill h-full rounded-full ${barClass}`}
-                                style={{ width: `${Math.min(c.percentage, 100)}%` }}
+                                className={`progress-fill h-full rounded-full ${barClass} transition-all duration-700`}
+                                style={{ width: `${Math.min(displayPct, 100)}%` }}
                               />
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-[9px] font-bold" style={{ color: statusColor }}>
-                                {Math.round(c.percentage)}% Terpakai
+                                {monthlyData?.isCarryoverDisabled ? "Mulai dari Rp0" : `${Math.round(displayPct)}% Terpakai`}
                               </span>
                               <span className="text-[9px] text-secondary font-semibold">
-                                Sisa: {c.budget - c.spent > 0 ? formatRupiah(c.budget - c.spent) : "Rp0"}
+                                Limit: {formatRupiah(c.budget)}
                               </span>
                             </div>
                           </div>
@@ -1717,86 +1739,85 @@ export default function MobileDashboard({
                   </div>
                 </div>
 
-                {/* Savings Goal Progress */}
-                <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800/80 rounded-3xl p-4 shadow-card">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[10px] text-secondary font-bold uppercase tracking-wider">Target Tabungan Bulanan</span>
-                    <span className="text-[9px] font-black bg-green/10 text-green px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                      {savingsTarget > 0 ? `${Math.round(Math.max((monthlyData.income - monthlyData.expense) / savingsTarget * 100, 0))}%` : "0%"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-end mb-2">
-                    <div>
-                      <p className="text-secondary text-[9px] font-bold uppercase">Terkumpul</p>
-                      <h4 className="text-lg font-black text-ink dark:text-zinc-100 mt-0.5 leading-none">
-                        {formatRupiah(Math.max(monthlyData.income - monthlyData.expense, 0))}
-                      </h4>
+                {/* Tabungan Sisa Saldo */}
+                {(() => {
+                  const savedBalance = monthlyData?.previousCumulativeBalance || 0;
+                  const totalIncome = monthlyData?.totalAllTimeIncome || 0;
+                  const currentMonthNet = monthlyData.income - monthlyData.expense;
+                  const displaySavings = monthlyData?.isCarryoverDisabled
+                    ? savedBalance                              // sisa sebelum reset = tabungan
+                    : savedBalance + currentMonthNet;          // akumulasi total (carryover aktif)
+                  const savingsPct = totalIncome > 0 ? Math.round(Math.max((displaySavings / totalIncome) * 100, 0)) : 0;
+                  const thisMonthSavingPct = monthlyData.income > 0
+                    ? Math.round(Math.max((currentMonthNet / monthlyData.income) * 100, 0))
+                    : 0;
+
+                  return (
+                    <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800/80 rounded-3xl p-4 shadow-card">
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <span className="text-[10px] text-secondary font-bold uppercase tracking-wider">
+                            {monthlyData?.isCarryoverDisabled ? "💰 Tabungan Sisa Saldo" : "💰 Tabungan Akumulasi"}
+                          </span>
+                          {monthlyData?.isCarryoverDisabled && (
+                            <span className="ml-1.5 text-[8px] font-extrabold bg-orange/10 text-orange px-1.5 py-0.5 rounded-md">Siklus Baru</span>
+                          )}
+                        </div>
+                        <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                          savingsPct >= 30 ? "bg-green/10 text-green" :
+                          savingsPct >= 10 ? "bg-blue/10 text-blue" :
+                          "bg-red/10 text-red"
+                        }`}>
+                          {savingsPct}% Saving Rate
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <p className="text-secondary text-[9px] font-bold uppercase">
+                            {monthlyData?.isCarryoverDisabled ? "Sisa Sebelum Reset" : "Total Tabungan"}
+                          </p>
+                          <h4 className="text-lg font-black mt-0.5 leading-none" style={{ color: displaySavings >= 0 ? "#34C759" : "#FF3B30" }}>
+                            {formatRupiah(Math.max(displaySavings, 0))}
+                          </h4>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-secondary text-[9px] font-bold uppercase">Saving Bulan Ini</p>
+                          <h4 className={`text-lg font-black mt-0.5 leading-none ${
+                            currentMonthNet >= 0 ? "text-green" : "text-red"
+                          }`}>
+                            {thisMonthSavingPct}%
+                          </h4>
+                          <p className="text-[8px] text-secondary mt-0.5">{formatRupiah(Math.max(currentMonthNet, 0))}</p>
+                        </div>
+                      </div>
+
+                      {/* Saving Rate Progress Bar */}
+                      <div className="bg-separator/40 h-[6px] rounded-full overflow-hidden mb-1.5">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{
+                            width: `${Math.min(savingsPct, 100)}%`,
+                            background: savingsPct >= 30
+                              ? "linear-gradient(90deg, #34C759, #30D158)"
+                              : savingsPct >= 10
+                              ? "linear-gradient(90deg, #007AFF, #5AC8FA)"
+                              : "linear-gradient(90deg, #FF3B30, #FF9500)",
+                          }}
+                        />
+                      </div>
+                      <p className="text-[9px] text-secondary italic pl-0.5">
+                        {savingsPct >= 30
+                          ? "🎉 Saving rate kamu sangat sehat (≥30%)!"
+                          : savingsPct >= 10
+                          ? `✅ Saving rate ${savingsPct}% — terus tingkatkan!`
+                          : displaySavings <= 0
+                          ? "⚠️ Saldo tabungan nihil. Kurangi pengeluaran!"
+                          : `💡 Dari total pemasukan Rp${Math.round(totalIncome/1000)}rb, tabungan ${savingsPct}%.`}
+                      </p>
                     </div>
-                    {isEditingSavingsTarget ? (
-                      <div className="flex flex-col items-end gap-1.5">
-                        <p className="text-secondary text-[9px] font-bold uppercase">Target</p>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            value={tempSavingsTarget}
-                            onChange={(e) => setTempSavingsTarget(e.target.value)}
-                            className="bg-[#F2F2F7] dark:bg-zinc-800 rounded-xl px-2 py-0.5 text-xs font-bold text-ink dark:text-zinc-200 w-20 text-right focus:outline-none focus:ring-1 focus:ring-violet"
-                          />
-                          <button
-                            onClick={() => {
-                              const val = parseFloat(tempSavingsTarget);
-                              if (!isNaN(val)) {
-                                setSavingsTarget(val);
-                              }
-                              setIsEditingSavingsTarget(false);
-                            }}
-                            className="px-2 py-0.5 bg-violet text-white rounded-lg text-[9px] font-bold uppercase active:scale-95 transition"
-                          >
-                            OK
-                          </button>
-                          <button
-                            onClick={() => {
-                              setTempSavingsTarget(savingsTarget.toString());
-                              setIsEditingSavingsTarget(false);
-                            }}
-                            className="px-2 py-0.5 bg-[#E5E5EA] dark:bg-zinc-800 text-secondary rounded-lg text-[9px] font-bold uppercase active:scale-95 transition"
-                          >
-                            Batal
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-right">
-                        <p className="text-secondary text-[9px] font-bold uppercase">Target</p>
-                        <div className="flex items-center justify-end gap-1 mt-0.5">
-                          <p className="text-xs font-black text-ink dark:text-zinc-200">{formatRupiah(savingsTarget)}</p>
-                          <button
-                            onClick={() => setIsEditingSavingsTarget(true)}
-                            className="p-1 hover:bg-violet/10 text-secondary hover:text-violet rounded-lg transition"
-                            title="Edit Target"
-                          >
-                            <Edit2 className="w-3.5 h-3.5 opacity-60 hover:opacity-100 transition-opacity" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="progress-bar bg-separator/40 h-[6px] rounded-full overflow-hidden mb-1">
-                    <div 
-                      className="h-full rounded-full bg-gradient-to-r from-green to-teal transition-all duration-700"
-                      style={{ 
-                        width: `${Math.min(Math.max(((monthlyData.income - monthlyData.expense) / (savingsTarget || 1)) * 100, 0), 100)}%` 
-                      }}
-                    />
-                  </div>
-                  <p className="text-[9px] text-secondary italic mt-1.5 pl-0.5">
-                    {(monthlyData.income - monthlyData.expense) >= savingsTarget 
-                      ? "🎉 Selamat! Target tabungan bulan ini tercapai!" 
-                      : (monthlyData.income - monthlyData.expense) <= 0 
-                        ? "⚠️ Tabungan kamu nihil. Kurangi pengeluaran agar bisa menabung!" 
-                        : `Sisa ${formatRupiah(savingsTarget - (monthlyData.income - monthlyData.expense))} lagi untuk mencapai target.`}
-                  </p>
-                </div>
+                  );
+                })()}
 
                 {/* Breakdown Kategori (Pie Chart) */}
                 <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800/80 rounded-3xl p-4 shadow-card">
