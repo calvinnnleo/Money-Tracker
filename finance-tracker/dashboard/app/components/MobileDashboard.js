@@ -290,6 +290,7 @@ export default function MobileDashboard({
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAddTxModal, setShowAddTxModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
 
   // Form states for manual transaction entry
   const [txType, setTxType] = useState("Expense");
@@ -911,7 +912,7 @@ export default function MobileDashboard({
                           Ringkasan Saldo ({shortMonthLabel})
                         </span>
                         <button
-                          onClick={() => onToggleCarryover && onToggleCarryover(selectedMonth)}
+                          onClick={() => setShowResetConfirmModal(true)}
                           className={`text-[8px] font-bold px-2 py-0.5 rounded-lg border transition active:scale-95 flex items-center gap-1 shrink-0 ${
                             monthlyData?.isCarryoverDisabled
                               ? "bg-orange/15 text-orange border-orange/30 font-black"
@@ -2417,7 +2418,10 @@ export default function MobileDashboard({
                   </div>
                   <button
                     type="button"
-                    onClick={() => onToggleCarryover && onToggleCarryover(selectedMonth)}
+                    onClick={() => {
+                      setShowSettingsModal(false);
+                      setShowResetConfirmModal(true);
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition active:scale-95 ${
                       monthlyData?.isCarryoverDisabled
                         ? "bg-orange/15 text-orange border border-orange/30"
@@ -2737,6 +2741,63 @@ export default function MobileDashboard({
                   Hapus
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Reset Carryover / Gajian */}
+      {showResetConfirmModal && (
+        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+            <div className="flex justify-between items-center mb-3">
+              <div className="w-10 h-10 rounded-2xl bg-orange/10 flex items-center justify-center text-xl">
+                🐷
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition"
+              >
+                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+              </button>
+            </div>
+
+            <h3 className="font-extrabold text-base text-ink dark:text-zinc-100 mb-1">
+              {monthlyData?.isCarryoverDisabled ? "Aktifkan Saldo Akumulasi?" : "Reset Saldo ke Tabungan?"}
+            </h3>
+            
+            <p className="text-xs text-secondary dark:text-zinc-400 leading-relaxed mb-4">
+              {monthlyData?.isCarryoverDisabled ? (
+                "Saldo bawaan bulan sebelumnya akan digabungkan kembali ke Sisa Saldo Kas bulan ini."
+              ) : (
+                <>
+                  Sisa saldo akumulasi sebesar <strong className="text-green font-bold">{formatRupiah(monthlyData?.previousCumulativeBalance || 0)}</strong> akan dimasukkan ke <strong className="text-violet font-bold">Tabungan Sisa Saldo</strong>, dan Saldo Kas bulan ini dimulai dari Rp0 untuk gajian baru.
+                </>
+              )}
+            </p>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onToggleCarryover) onToggleCarryover(selectedMonth);
+                  setShowResetConfirmModal(false);
+                  if (!monthlyData?.isCarryoverDisabled) {
+                    setActiveTab("insights"); // Langsung buka tab Analisa (Saving)
+                  }
+                }}
+                className="w-full py-3.5 rounded-2xl bg-violet text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-glow-violet/20"
+              >
+                {monthlyData?.isCarryoverDisabled ? "Ya, Gabungkan Kembali" : "Ya, Reset & Lihat Tabungan"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="w-full py-3 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary dark:text-zinc-300 font-bold text-xs uppercase tracking-wider active:scale-95 transition"
+              >
+                Batal
+              </button>
             </div>
           </div>
         </div>
