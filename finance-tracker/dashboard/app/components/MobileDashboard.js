@@ -257,6 +257,7 @@ export default function MobileDashboard({
   onAddBudget,
   onDeleteBudget,
   onDeleteTransaction,
+  onToggleCarryover,
 
   // Settings, profiles, and transactions props
   userName,
@@ -905,13 +906,34 @@ export default function MobileDashboard({
                   {/* Left Column: Sisa Saldo + Masuk, Keluar & Budget Row */}
                   <div className="flex-1 space-y-3">
                     <div>
-                      <span className="text-[8px] bg-violet/10 text-violet font-bold px-2 py-0.5 rounded-full uppercase tracking-wider inline-block">
-                        Ringkasan Saldo ({shortMonthLabel})
-                      </span>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[8px] bg-violet/10 text-violet font-bold px-2 py-0.5 rounded-full uppercase tracking-wider inline-block">
+                          Ringkasan Saldo ({shortMonthLabel})
+                        </span>
+                        <button
+                          onClick={() => onToggleCarryover && onToggleCarryover(selectedMonth)}
+                          className={`text-[8px] font-bold px-2 py-0.5 rounded-lg border transition active:scale-95 flex items-center gap-1 shrink-0 ${
+                            monthlyData?.isCarryoverDisabled
+                              ? "bg-orange/15 text-orange border-orange/30 font-black"
+                              : "bg-surface/80 text-secondary border-separator/40 hover:text-violet"
+                          }`}
+                          title={monthlyData?.isCarryoverDisabled ? "Saldo bulan lalu di-reset (Rp0). Klik untuk sertakan saldo akumulasi." : "Klik untuk nol-kan saldo bulan lalu sebelum gajian"}
+                        >
+                          <RefreshCw className={`w-2.5 h-2.5 ${monthlyData?.isCarryoverDisabled ? "rotate-180 text-orange" : ""}`} />
+                          <span>{monthlyData?.isCarryoverDisabled ? "Siklus Baru (Rp0)" : "Reset Bawaan"}</span>
+                        </button>
+                      </div>
                       <h3 className="text-2xl font-black tracking-tight text-ink mt-2 leading-none">
                         <AnimatedNumber value={balance} prefix="Rp" />
                       </h3>
-                      <p className="text-secondary text-[8px] font-bold mt-1 uppercase tracking-wide">Sisa Saldo Kas</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <p className="text-secondary text-[8px] font-bold uppercase tracking-wide">Sisa Saldo Kas</p>
+                        {monthlyData?.isCarryoverDisabled && (
+                          <span className="text-[7.5px] font-extrabold bg-orange/10 text-orange px-1.5 py-0.2 rounded-md">
+                            • Tanpa Saldo Lalu
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Sub-row of Masuk & Keluar */}
@@ -2362,6 +2384,28 @@ export default function MobileDashboard({
                   onChange={(e) => setSettingName(e.target.value)}
                   className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold placeholder-secondary/70 focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100"
                 />
+              </div>
+
+              {/* Reset Saldo Gajian / Carryover */}
+              <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
+                <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Siklus Gajian & Carryover</span>
+                <div className="flex items-center justify-between bg-white dark:bg-zinc-800 p-3 rounded-xl border border-separator/25 dark:border-zinc-700/60">
+                  <div>
+                    <span className="text-[11px] font-bold text-ink dark:text-zinc-200 block">Reset Saldo Bulan Lalu</span>
+                    <span className="text-[9px] text-secondary font-medium block mt-0.5">Nol-kan saldo bawaan sebelum gajian</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onToggleCarryover && onToggleCarryover(selectedMonth)}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition active:scale-95 ${
+                      monthlyData?.isCarryoverDisabled
+                        ? "bg-orange/15 text-orange border border-orange/30"
+                        : "bg-violet/10 text-violet border border-violet/20"
+                    }`}
+                  >
+                    {monthlyData?.isCarryoverDisabled ? "Aktif (Rp0)" : "Reset (Rp0)"}
+                  </button>
+                </div>
               </div>
 
               {/* Change Password */}

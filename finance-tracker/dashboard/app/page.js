@@ -53,11 +53,12 @@ export default function Page() {
     router.refresh();
   };
   
-  // Custom Profile, Settings and Transactions
+  // Custom Profile, Settings, Transactions & Reset Carryover State
   const [userName, setUserName] = useState("User");
   const [profile, setProfile] = useState(null);
   const [savingsTarget, setSavingsTarget] = useState(2000000);
   const [localTransactions, setLocalTransactions] = useState([]);
+  const [resetCarryoverMonths, setResetCarryoverMonths] = useState([]);
 
   const fetchProfile = async () => {
     try {
@@ -130,6 +131,16 @@ export default function Page() {
     const savedTarget = localStorage.getItem("saved_savings_target");
     if (savedTarget) setSavingsTarget(parseFloat(savedTarget) || 2000000);
 
+    const savedResetMonths = localStorage.getItem("saved_reset_carryover_months");
+    if (savedResetMonths) {
+      try {
+        const parsed = JSON.parse(savedResetMonths);
+        if (Array.isArray(parsed)) setResetCarryoverMonths(parsed);
+      } catch (e) {
+        console.error("Failed to parse saved_reset_carryover_months", e);
+      }
+    }
+
     // Load cached server transactions from localStorage (persists across months)
     const savedServerTxs = localStorage.getItem("saved_server_transactions");
     if (savedServerTxs) {
@@ -165,7 +176,9 @@ export default function Page() {
     localStorage.setItem("saved_savings_target", savingsTarget.toString());
   }, [savingsTarget]);
 
-
+  useEffect(() => {
+    localStorage.setItem("saved_reset_carryover_months", JSON.stringify(resetCarryoverMonths));
+  }, [resetCarryoverMonths]);
 
   useEffect(() => {
     localStorage.setItem("saved_local_transactions", JSON.stringify(localTransactions));
@@ -177,6 +190,18 @@ export default function Page() {
       localStorage.setItem("saved_budgets", JSON.stringify(data.budgets));
     }
   }, [data.budgets]);
+
+  const handleToggleCarryover = (monthStr) => {
+    const targetMonth = monthStr || selectedMonth;
+    if (!targetMonth) return;
+    setResetCarryoverMonths(prev => {
+      if (prev.includes(targetMonth)) {
+        return prev.filter(m => m !== targetMonth);
+      } else {
+        return [...prev, targetMonth];
+      }
+    });
+  };
 
   // Fetch API (Saves to state if server is online, fallback silently if offline)
   useEffect(() => {
@@ -330,19 +355,24 @@ export default function Page() {
 
   // Filter transactions for the selected month & compute cumulative balance up to selected month
   const monthlyData = useMemo(() => {
-    if (!data) return { txs: [], income: 0, expense: 0, cumulativeBalance: 0 };
+    if (!data) return { txs: [], income: 0, expense: 0, cumulativeBalance: 0, isCarryoverDisabled: false };
     const txs = allTransactions.filter((t) => t.date?.startsWith(selectedMonth));
     const income = txs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
     const expense = txs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
 
-    // Calculate cumulative balance up to the selected month
-    const cumulativeTxs = allTransactions.filter((t) => t.date && t.date.slice(0, 7) <= selectedMonth);
-    const cumulativeIncome = cumulativeTxs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
-    const cumulativeExpense = cumulativeTxs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
-    const cumulativeBalance = cumulativeIncome - cumulativeExpense;
+    const isCarryoverDisabled = resetCarryoverMonths.includes(selectedMonth);
 
-    return { txs, income, expense, cumulativeBalance };
-  }, [allTransactions, selectedMonth, data]);
+    let cumulativeBalance = income - expense;
+    if (!isCarryoverDisabled) {
+      // Calculate cumulative balance up to the selected month
+      const cumulativeTxs = allTransactions.filter((t) => t.date && t.date.slice(0, 7) <= selectedMonth);
+      const cumulativeIncome = cumulativeTxs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
+      const cumulativeExpense = cumulativeTxs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
+      cumulativeBalance = cumulativeIncome - cumulativeExpense;
+    }
+
+    return { txs, income, expense, cumulativeBalance, isCarryoverDisabled };
+  }, [allTransactions, selectedMonth, data, resetCarryoverMonths]);
 
   // Category breakdown for budgets & charts
   const categoryData = useMemo(() => {
@@ -559,6 +589,7 @@ export default function Page() {
       onAddBudget={handleAddBudget}
       onDeleteBudget={handleDeleteBudget}
       onDeleteTransaction={handleDeleteTransaction}
+      onToggleCarryover={handleToggleCarryover}
       
       // Profiles, settings and custom transaction support
       userName={userName}
