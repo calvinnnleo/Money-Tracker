@@ -17,6 +17,8 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Download,
   Search,
   Activity,
@@ -95,6 +97,20 @@ function getGreetingEmoji() {
   if (hour < 15) return "🌤️";
   if (hour < 18) return "🌅";
   return "🌙";
+}
+
+function formatMonthLabel(monthStr) {
+  if (!monthStr || monthStr === "ALL") return "Semua Waktu (Default)";
+  const parts = monthStr.split("-");
+  if (parts.length < 2) return monthStr;
+  const y = parts[0];
+  const m = parts[1];
+  const monthNames = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+  const idx = parseInt(m, 10) - 1;
+  return `${monthNames[idx] || m} ${y}`;
 }
 
 // ─── Sub-Components ──────────────────────────────────────────────────────────
@@ -259,6 +275,10 @@ export default function MobileDashboard({
   onDeleteTransaction,
   onToggleCarryover,
 
+  // Custom akumulasi start month
+  akumulasiStartMonth,
+  setAkumulasiStartMonth,
+
   // Settings, profiles, and transactions props
   userName,
   setUserName,
@@ -291,6 +311,13 @@ export default function MobileDashboard({
   const [showAddTxModal, setShowAddTxModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+
+  // Tabungan Akumulasi Modal & Confirmation states
+  const [showAkumulasiModal, setShowAkumulasiModal] = useState(false);
+  const [showRestartConfirmModal, setShowRestartConfirmModal] = useState(false);
+  const [showAllResetLogs, setShowAllResetLogs] = useState(false);
+  const [tempStartMonth, setTempStartMonth] = useState(akumulasiStartMonth || "ALL");
+  const [targetRestartMonth, setTargetRestartMonth] = useState(selectedMonth);
 
   // Form states for manual transaction entry
   const [txType, setTxType] = useState("Expense");
@@ -1740,82 +1767,93 @@ export default function MobileDashboard({
                   </div>
                 </div>
 
-                {/* Tabungan Sisa Saldo */}
+                {/* Tabungan Akumulasi & Investasi */}
                 {(() => {
-                  const savedBalance = monthlyData?.previousCumulativeBalance || 0;
-                  const totalIncome = monthlyData?.totalAllTimeIncome || 0;
-                  const currentMonthNet = monthlyData.income - monthlyData.expense;
-                  const displaySavings = monthlyData?.isCarryoverDisabled
-                    ? savedBalance                              // sisa sebelum reset = tabungan
-                    : savedBalance + currentMonthNet;          // akumulasi total (carryover aktif)
-                  const savingsPct = totalIncome > 0 ? Math.round(Math.max((displaySavings / totalIncome) * 100, 0)) : 0;
-                  const thisMonthSavingPct = monthlyData.income > 0
-                    ? Math.round(Math.max((currentMonthNet / monthlyData.income) * 100, 0))
-                    : 0;
+                  const resetLogs = monthlyData?.resetMonthlyLogs || [];
+                  const totalResetSavings = monthlyData?.totalResetSavings || 0;
 
                   return (
-                    <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800/80 rounded-3xl p-4 shadow-card">
-                      <div className="flex justify-between items-center mb-3">
-                        <div>
-                          <span className="text-[10px] text-secondary font-bold uppercase tracking-wider">
-                            {monthlyData?.isCarryoverDisabled ? "💰 Tabungan Sisa Saldo" : "💰 Tabungan Akumulasi"}
+                    <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800/80 rounded-3xl p-5 shadow-card">
+                      {/* Header row */}
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
+                            🐷
+                          </div>
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-secondary dark:text-zinc-400">
+                            Total Sisa Uang
                           </span>
-                          {monthlyData?.isCarryoverDisabled && (
-                            <span className="ml-1.5 text-[8px] font-extrabold bg-orange/10 text-orange px-1.5 py-0.5 rounded-md">Siklus Baru</span>
+                        </div>
+                      </div>
+
+                      {/* Total Savings Display */}
+                      <div className="my-3">
+                        <span className="text-[10px] text-secondary dark:text-zinc-400 font-medium block">
+                          Total Hasil Tabungan dari Reset Bulanan
+                        </span>
+                        <h3 className="text-2xl font-black mt-0.5 text-ink dark:text-zinc-100 tracking-tight">
+                          {formatRupiah(totalResetSavings)}
+                        </h3>
+                      </div>
+
+                      {/* Rincian Sisa Per Bulan (Maks 12 Bulan) */}
+                      <div className="mt-4 pt-3 border-t border-separator/30 dark:border-zinc-800/80 space-y-2">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[10px] font-extrabold text-secondary dark:text-zinc-400 uppercase tracking-wider block">
+                            Rincian Sisa Bulan (Maks 12 Bulan)
+                          </span>
+                          {resetLogs.length > 0 && (
+                            <span className="text-[9px] font-bold text-secondary dark:text-zinc-400">
+                              {resetLogs.length} bulan dicatat
+                            </span>
                           )}
                         </div>
-                        <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                          savingsPct >= 30 ? "bg-green/10 text-green" :
-                          savingsPct >= 10 ? "bg-blue/10 text-blue" :
-                          "bg-red/10 text-red"
-                        }`}>
-                          {savingsPct}% Saving Rate
-                        </span>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                          <p className="text-secondary text-[9px] font-bold uppercase">
-                            {monthlyData?.isCarryoverDisabled ? "Sisa Sebelum Reset" : "Total Tabungan"}
-                          </p>
-                          <h4 className="text-lg font-black mt-0.5 leading-none" style={{ color: displaySavings >= 0 ? "#34C759" : "#FF3B30" }}>
-                            {formatRupiah(Math.max(displaySavings, 0))}
-                          </h4>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-secondary text-[9px] font-bold uppercase">Saving Bulan Ini</p>
-                          <h4 className={`text-lg font-black mt-0.5 leading-none ${
-                            currentMonthNet >= 0 ? "text-green" : "text-red"
-                          }`}>
-                            {thisMonthSavingPct}%
-                          </h4>
-                          <p className="text-[8px] text-secondary mt-0.5">{formatRupiah(Math.max(currentMonthNet, 0))}</p>
-                        </div>
-                      </div>
+                        {resetLogs.length === 0 ? (
+                          <div className="bg-[#F2F2F7] dark:bg-zinc-800/60 rounded-2xl p-3.5 text-center">
+                            <p className="text-xs text-secondary dark:text-zinc-400 font-medium leading-relaxed">
+                              Belum ada sisa bulan yang di-reset. Tekan tombol <strong className="text-ink dark:text-zinc-200">Reset Saldo</strong> di Home saat gajian untuk menyimpan sisa uang ke sini.
+                            </p>
+                          </div>
+                        ) : (
+                          (showAllResetLogs ? resetLogs : resetLogs.slice(0, 3)).map((item, idx) => (
+                            <div
+                              key={item.resetMonth || idx}
+                              className="flex items-center justify-between bg-[#F2F2F7] dark:bg-zinc-800/60 rounded-2xl p-3 border border-separator/20 dark:border-zinc-700/40"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
+                                  📅
+                                </div>
+                                <div>
+                                  <span className="text-xs font-extrabold text-ink dark:text-zinc-100 block leading-tight">
+                                    Sisa {formatMonthLabel(item.sourceMonth)}
+                                  </span>
+                                  <span className="text-[9px] text-secondary dark:text-zinc-400 block mt-0.5">
+                                    Direset pada {formatMonthLabel(item.resetMonth)}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                +{formatRupiah(item.amount)}
+                              </span>
+                            </div>
+                          ))
+                        )}
 
-                      {/* Saving Rate Progress Bar */}
-                      <div className="bg-separator/40 h-[6px] rounded-full overflow-hidden mb-1.5">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{
-                            width: `${Math.min(savingsPct, 100)}%`,
-                            background: savingsPct >= 30
-                              ? "linear-gradient(90deg, #34C759, #30D158)"
-                              : savingsPct >= 10
-                              ? "linear-gradient(90deg, #007AFF, #5AC8FA)"
-                              : "linear-gradient(90deg, #FF3B30, #FF9500)",
-                          }}
-                        />
+                        {resetLogs.length > 3 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAllResetLogs(prev => !prev)}
+                            className="w-full mt-2 py-2 px-3 rounded-2xl bg-[#F2F2F7] hover:bg-[#E5E5EA] dark:bg-zinc-800/80 dark:hover:bg-zinc-800 text-purple-600 dark:text-purple-400 text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition active:scale-98"
+                          >
+                            <span>
+                              {showAllResetLogs ? "Lihat Lebih Sedikit" : `Lihat Selengkapnya (${resetLogs.length} bulan)`}
+                            </span>
+                            {showAllResetLogs ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
                       </div>
-                      <p className="text-[9px] text-secondary italic pl-0.5">
-                        {savingsPct >= 30
-                          ? "🎉 Saving rate kamu sangat sehat (≥30%)!"
-                          : savingsPct >= 10
-                          ? `✅ Saving rate ${savingsPct}% — terus tingkatkan!`
-                          : displaySavings <= 0
-                          ? "⚠️ Saldo tabungan nihil. Kurangi pengeluaran!"
-                          : `💡 Dari total pemasukan Rp${Math.round(totalIncome/1000)}rb, tabungan ${savingsPct}%.`}
-                      </p>
                     </div>
                   );
                 })()}

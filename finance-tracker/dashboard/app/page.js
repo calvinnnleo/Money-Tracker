@@ -59,6 +59,7 @@ export default function Page() {
   const [savingsTarget, setSavingsTarget] = useState(2000000);
   const [localTransactions, setLocalTransactions] = useState([]);
   const [resetCarryoverMonths, setResetCarryoverMonths] = useState([]);
+  const [akumulasiStartMonth, setAkumulasiStartMonth] = useState(null);
 
   const fetchProfile = async () => {
     try {
@@ -165,6 +166,9 @@ export default function Page() {
         console.error("Failed to parse saved_local_transactions", e);
       }
     }
+
+    const savedAkumulasiStart = localStorage.getItem("saved_akumulasi_start_month");
+    if (savedAkumulasiStart) setAkumulasiStartMonth(savedAkumulasiStart);
   }, []);
 
   // Sync to localStorage
@@ -183,6 +187,14 @@ export default function Page() {
   useEffect(() => {
     localStorage.setItem("saved_local_transactions", JSON.stringify(localTransactions));
   }, [localTransactions]);
+
+  useEffect(() => {
+    if (akumulasiStartMonth) {
+      localStorage.setItem("saved_akumulasi_start_month", akumulasiStartMonth);
+    } else {
+      localStorage.removeItem("saved_akumulasi_start_month");
+    }
+  }, [akumulasiStartMonth]);
 
   // Sync budgets back to localStorage when updated
   useEffect(() => {
@@ -355,7 +367,7 @@ export default function Page() {
 
   // Filter transactions for the selected month & compute cumulative balance up to selected month
   const monthlyData = useMemo(() => {
-    if (!data) return { txs: [], income: 0, expense: 0, cumulativeBalance: 0, isCarryoverDisabled: false, previousCumulativeBalance: 0 };
+    if (!data) return { txs: [], income: 0, expense: 0, cumulativeBalance: 0, isCarryoverDisabled: false, previousCumulativeBalance: 0, totalAkumulasiSavings: 0, akumulasiStartMonth: null, availableMonths: [] };
     const txs = allTransactions.filter((t) => t.date?.startsWith(selectedMonth));
     const income = txs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
     const expense = txs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
@@ -376,8 +388,60 @@ export default function Page() {
       cumulativeBalance = previousCumulativeBalance + (income - expense);
     }
 
-    return { txs, income, expense, cumulativeBalance, isCarryoverDisabled, previousCumulativeBalance, totalAllTimeIncome };
-  }, [allTransactions, selectedMonth, data, resetCarryoverMonths]);
+    // Filter transactions for Tabungan Akumulasi based on akumulasiStartMonth
+    const accumTxs = allTransactions.filter((t) => {
+      if (!t.date) return false;
+      const monthOfTx = t.date.slice(0, 7);
+      if (akumulasiStartMonth && monthOfTx < akumulasiStartMonth) return false;
+      return monthOfTx <= selectedMonth;
+    });
+    const accumIncome = accumTxs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
+    const accumExpense = accumTxs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
+    const totalAkumulasiSavings = accumIncome - accumExpense;
+
+    // Compute monthly reset logs (up to 12 months)
+    const sortedResetMonths = [...resetCarryoverMonths].sort().reverse().slice(0, 12);
+    const resetMonthlyLogs = sortedResetMonths.map((resMonth) => {
+      const priorTxs = allTransactions.filter((t) => t.date && t.date.slice(0, 7) < resMonth);
+      const pIncome = priorTxs.filter((t) => t.type === "Income").reduce((s, t) => s + t.amount, 0);
+      const pExpense = priorTxs.filter((t) => t.type === "Expense").reduce((s, t) => s + t.amount, 0);
+      const savedAmount = Math.max(pIncome - pExpense, 0);
+
+      const [y, mStr] = resMonth.split("-");
+      const dt = new Date(parseInt(y), parseInt(mStr) - 1, 1);
+      dt.setMonth(dt.getMonth() - 1);
+      const prevYear = dt.getFullYear();
+      const prevM = String(dt.getMonth() + 1).padStart(2, "0");
+      const prevMonthCode = `${prevYear}-${prevM}`;
+
+      return {
+        resetMonth: resMonth,
+        sourceMonth: prevMonthCode,
+        amount: savedAmount,
+      };
+    });
+
+    const totalResetSavings = resetMonthlyLogs.reduce((sum, item) => sum + item.amount, 0);
+
+    const availableMonthsSet = new Set(allTransactions.map((t) => t.date?.slice(0, 7)).filter(Boolean));
+    if (selectedMonth) availableMonthsSet.add(selectedMonth);
+    const availableMonths = Array.from(availableMonthsSet).sort();
+
+    return { 
+      txs, 
+      income, 
+      expense, 
+      cumulativeBalance, 
+      isCarryoverDisabled, 
+      previousCumulativeBalance, 
+      totalAllTimeIncome,
+      totalAkumulasiSavings,
+      akumulasiStartMonth,
+      availableMonths,
+      resetMonthlyLogs,
+      totalResetSavings,
+    };
+  }, [allTransactions, selectedMonth, data, resetCarryoverMonths, akumulasiStartMonth]);
 
   // Category breakdown for budgets & charts
   const categoryData = useMemo(() => {
@@ -553,12 +617,13 @@ export default function Page() {
   };
 
   // Initial spinner loading
-  if (loading) {
+  if (loading && (!data?.transactions || data.transactions.length === 0)) {
     return (
-      <div className="min-h-screen bg-[#F5F5FA] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F5FA] dark:bg-zinc-950 flex flex-col items-center justify-center relative">
+        <div className="fixed top-0 left-0 right-0 z-[9999] h-1.5 bg-gradient-to-r from-purple-600 via-violet-500 to-fuchsia-500 animate-pulse" />
         <div className="flex flex-col items-center">
-          <div className="w-10 h-10 border-4 border-blue border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs font-bold text-secondary mt-3 uppercase tracking-widest">Loading Kas...</span>
+          <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs font-bold text-purple-600 dark:text-purple-400 mt-3 uppercase tracking-widest">Loading Kas...</span>
         </div>
       </div>
     );
@@ -580,34 +645,43 @@ export default function Page() {
   }
 
   return (
-    <MobileDashboard
-      data={data}
-      allTransactions={allTransactions}
-      monthlyData={monthlyData}
-      categoryData={categoryData}
-      donutData={donutData}
-      trendData={trendData}
-      stats={stats}
-      selectedMonth={selectedMonth}
-      setSelectedMonth={setSelectedMonth}
-      changeMonth={changeMonth}
-      onAddBudget={handleAddBudget}
-      onDeleteBudget={handleDeleteBudget}
-      onDeleteTransaction={handleDeleteTransaction}
-      onToggleCarryover={handleToggleCarryover}
-      
-      // Profiles, settings and custom transaction support
-      userName={userName}
-      setUserName={handleUpdateProfileName}
-      savingsTarget={savingsTarget}
-      setSavingsTarget={setSavingsTarget}
-      isDarkMode={false}
-      setIsDarkMode={() => {}}
-      onAddTransaction={handleAddTransaction}
-      onLogout={handleLogout}
-      telegramId={profile?.telegram_id}
-      telegramName={profile?.display_name}
-      onRefreshProfile={fetchProfile}
-    />
+    <>
+      {loading && (
+        <div className="fixed top-0 left-0 right-0 z-[9999] h-1 bg-gradient-to-r from-purple-600 via-violet-500 to-fuchsia-500 animate-pulse" />
+      )}
+      <MobileDashboard
+        data={data}
+        allTransactions={allTransactions}
+        monthlyData={monthlyData}
+        categoryData={categoryData}
+        donutData={donutData}
+        trendData={trendData}
+        stats={stats}
+        selectedMonth={selectedMonth}
+        setSelectedMonth={setSelectedMonth}
+        changeMonth={changeMonth}
+        onAddBudget={handleAddBudget}
+        onDeleteBudget={handleDeleteBudget}
+        onDeleteTransaction={handleDeleteTransaction}
+        onToggleCarryover={handleToggleCarryover}
+        
+        // Custom akumulasi start month
+        akumulasiStartMonth={akumulasiStartMonth}
+        setAkumulasiStartMonth={setAkumulasiStartMonth}
+        
+        // Profiles, settings and custom transaction support
+        userName={userName}
+        setUserName={handleUpdateProfileName}
+        savingsTarget={savingsTarget}
+        setSavingsTarget={setSavingsTarget}
+        isDarkMode={false}
+        setIsDarkMode={() => {}}
+        onAddTransaction={handleAddTransaction}
+        onLogout={handleLogout}
+        telegramId={profile?.telegram_id}
+        telegramName={profile?.display_name}
+        onRefreshProfile={fetchProfile}
+      />
+    </>
   );
 }
