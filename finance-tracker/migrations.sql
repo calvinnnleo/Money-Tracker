@@ -131,3 +131,142 @@ BEGIN
   END IF;
 END $$;
 
+-- 10. Multi-Wallet (wallets & wallet_transfers)
+CREATE TABLE IF NOT EXISTS wallets (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name text NOT NULL,
+  emoji text DEFAULT '💳',
+  color text DEFAULT '#AF52DE',
+  type text DEFAULT 'debit', -- 'debit' | 'credit' | 'cash' | 'ewallet'
+  initial_balance numeric DEFAULT 0,
+  is_archived boolean DEFAULT false,
+  sort_order int DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own wallets" ON wallets;
+CREATE POLICY "Users manage own wallets" ON wallets FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role bypass wallets" ON wallets;
+CREATE POLICY "Service role bypass wallets" ON wallets FOR ALL TO service_role USING (true);
+
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS wallet_id uuid REFERENCES wallets(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS wallet_transfers (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  from_wallet_id uuid REFERENCES wallets(id) ON DELETE CASCADE NOT NULL,
+  to_wallet_id uuid REFERENCES wallets(id) ON DELETE CASCADE NOT NULL,
+  amount numeric NOT NULL,
+  note text DEFAULT '',
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE wallet_transfers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own transfers" ON wallet_transfers;
+CREATE POLICY "Users manage own transfers" ON wallet_transfers FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role bypass transfers" ON wallet_transfers;
+CREATE POLICY "Service role bypass transfers" ON wallet_transfers FOR ALL TO service_role USING (true);
+
+-- 11. Hutang Piutang (debts)
+CREATE TABLE IF NOT EXISTS debts (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  direction text NOT NULL, -- 'owed_to_me' (piutang) | 'i_owe' (utang)
+  person_name text NOT NULL,
+  amount numeric NOT NULL,
+  note text DEFAULT '',
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  due_date date,
+  settled boolean DEFAULT false,
+  settled_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE debts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own debts" ON debts;
+CREATE POLICY "Users manage own debts" ON debts FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role bypass debts" ON debts;
+CREATE POLICY "Service role bypass debts" ON debts FOR ALL TO service_role USING (true);
+
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS debt_id uuid REFERENCES debts(id) ON DELETE SET NULL;
+
+-- 12. Recurring Transactions (recurring_transactions)
+CREATE TABLE IF NOT EXISTS recurring_transactions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title text NOT NULL,
+  type text NOT NULL DEFAULT 'Expense', -- 'Expense' | 'Income'
+  category text NOT NULL DEFAULT 'Lainnya',
+  amount numeric NOT NULL,
+  wallet_id uuid REFERENCES wallets(id) ON DELETE SET NULL,
+  frequency text NOT NULL DEFAULT 'monthly', -- 'daily' | 'weekly' | 'monthly' | 'yearly'
+  day_of_month int DEFAULT 1,
+  is_active boolean DEFAULT true,
+  last_processed_date date,
+  next_due_date date,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own recurring" ON recurring_transactions;
+CREATE POLICY "Users manage own recurring" ON recurring_transactions FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role bypass recurring" ON recurring_transactions;
+CREATE POLICY "Service role bypass recurring" ON recurring_transactions FOR ALL TO service_role USING (true);
+
+-- 13. Savings Goals (savings_goals & goal_contributions)
+CREATE TABLE IF NOT EXISTS savings_goals (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title text NOT NULL,
+  target_amount numeric NOT NULL,
+  current_amount numeric DEFAULT 0,
+  target_date date,
+  emoji text DEFAULT '🎯',
+  color text DEFAULT '#AF52DE',
+  is_completed boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE savings_goals ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own goals" ON savings_goals;
+CREATE POLICY "Users manage own goals" ON savings_goals FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role bypass goals" ON savings_goals;
+CREATE POLICY "Service role bypass goals" ON savings_goals FOR ALL TO service_role USING (true);
+
+CREATE TABLE IF NOT EXISTS goal_contributions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  goal_id uuid REFERENCES savings_goals(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  amount numeric NOT NULL,
+  note text DEFAULT '',
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE goal_contributions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own contributions" ON goal_contributions;
+CREATE POLICY "Users manage own contributions" ON goal_contributions FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role bypass contributions" ON goal_contributions;
+CREATE POLICY "Service role bypass contributions" ON goal_contributions FOR ALL TO service_role USING (true);
+
+-- 14. Custom Categories (categories)
+CREATE TABLE IF NOT EXISTS categories (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name text NOT NULL,
+  emoji text DEFAULT '🏷️',
+  color text DEFAULT '#8E8E93',
+  type text DEFAULT 'Expense',
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, name)
+);
+
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own categories" ON categories;
+CREATE POLICY "Users manage own categories" ON categories FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Service role bypass categories" ON categories;
+CREATE POLICY "Service role bypass categories" ON categories FOR ALL TO service_role USING (true);
+
