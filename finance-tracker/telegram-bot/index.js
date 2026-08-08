@@ -1108,9 +1108,9 @@ bot.on("callback_query", async (callbackQuery) => {
 
   // 3. Settings updates
   else if (data === "set_rem_status") {
-    const settings = getSettings();
+    const settings = await getSettings(telegramId);
     settings.active = !settings.active;
-    saveSettings(settings);
+    await saveSettings(settings, telegramId);
     bot.editMessageText("⚙️ *Pengaturan Pengingat & Notifikasi:*", {
       chat_id: msg.chat.id,
       message_id: msg.message_id,
@@ -1118,9 +1118,9 @@ bot.on("callback_query", async (callbackQuery) => {
       ...SETTINGS_MENU(settings)
     });
   } else if (data === "set_rem_weekly") {
-    const settings = getSettings();
+    const settings = await getSettings(telegramId);
     settings.weeklySummary = !settings.weeklySummary;
-    saveSettings(settings);
+    await saveSettings(settings, telegramId);
     bot.editMessageText("⚙️ *Pengaturan Pengingat & Notifikasi:*", {
       chat_id: msg.chat.id,
       message_id: msg.message_id,
@@ -1128,9 +1128,9 @@ bot.on("callback_query", async (callbackQuery) => {
       ...SETTINGS_MENU(settings)
     });
   } else if (data === "set_rem_monthly") {
-    const settings = getSettings();
+    const settings = await getSettings(telegramId);
     settings.monthlyReport = !settings.monthlyReport;
-    saveSettings(settings);
+    await saveSettings(settings, telegramId);
     bot.editMessageText("⚙️ *Pengaturan Pengingat & Notifikasi:*", {
       chat_id: msg.chat.id,
       message_id: msg.message_id,
@@ -1146,9 +1146,9 @@ bot.on("callback_query", async (callbackQuery) => {
     });
   } else if (data.startsWith("time_set_")) {
     const selectedTime = data.replace("time_set_", "");
-    const settings = getSettings();
+    const settings = await getSettings(telegramId);
     settings.time = selectedTime;
-    saveSettings(settings);
+    await saveSettings(settings, telegramId);
     bot.editMessageText("⚙️ *Pengaturan Pengingat & Notifikasi:*", {
       chat_id: msg.chat.id,
       message_id: msg.message_id,
@@ -1156,7 +1156,7 @@ bot.on("callback_query", async (callbackQuery) => {
       ...SETTINGS_MENU(settings)
     });
   } else if (data === "set_rem_days_menu") {
-    const settings = getSettings();
+    const settings = await getSettings(telegramId);
     bot.editMessageText("📅 *Toggle hari aktif pengingat harian:*", {
       chat_id: msg.chat.id,
       message_id: msg.message_id,

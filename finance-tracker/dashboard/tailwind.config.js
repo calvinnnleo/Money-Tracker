@@ -6,11 +6,11 @@ module.exports = {
     extend: {
       colors: {
         // iOS System Colors
-        bg:          "#F2F2F7",
-        surface:     "#FFFFFF",
-        ink:         "#1C1C1E",
-        secondary:   "#8E8E93",
-        separator:   "#E5E5EA",
+        bg:          "var(--color-bg)",
+        surface:     "var(--color-surface)",
+        ink:         "var(--color-ink)",
+        secondary:   "var(--color-secondary)",
+        separator:   "var(--color-separator)",
         // Accent Colors
         green:       "#34C759",
         red:         "#FF3B30",
@@ -19,11 +19,11 @@ module.exports = {
         violet:      "#AF52DE",
         teal:        "#5AC8FA",
         // Soft backgrounds
-        "green-bg":  "#E8F9ED",
-        "red-bg":    "#FFECEB",
-        "blue-bg":   "#EBF2FF",
-        "orange-bg": "#FFF4E5",
-        "violet-bg": "#F5EEFA",
+        "green-bg":  "var(--color-green-bg)",
+        "red-bg":    "var(--color-red-bg)",
+        "blue-bg":   "var(--color-blue-bg)",
+        "orange-bg": "var(--color-orange-bg)",
+        "violet-bg": "var(--color-violet-bg)",
         // Legacy colors fallback
         paper: "#FAF7F0",
         ledger: "#1B4332",

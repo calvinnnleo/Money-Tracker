@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { getAllTransactions, getBudgetStatus, getUserIdByTelegramId } from "./db.js";
+import { getAllTransactions, getBudgetStatus, getUserIdByTelegramId, getUserSettings, saveUserSettings as saveDbUserSettings } from "./db.js";
 
 const SETTINGS_PATH = "./settings.json";
 
@@ -29,7 +29,31 @@ const DEFAULT_SETTINGS = {
   lastMonthlySent: "", // YYYY-MM
 };
 
-export function getSettings() {
+export async function getSettings(ownerId) {
+  if (ownerId) {
+    try {
+      const userId = await getUserIdByTelegramId(ownerId);
+      if (userId) {
+        const dbSettings = await getUserSettings(userId);
+        if (dbSettings) {
+          return {
+            ...DEFAULT_SETTINGS,
+            active: dbSettings.reminder_active ?? true,
+            time: dbSettings.reminder_time || "21:00",
+            days: dbSettings.reminder_days || [1, 2, 3, 4, 5],
+            weeklySummary: dbSettings.weekly_summary ?? true,
+            monthlyReport: dbSettings.monthly_report ?? true,
+            lastDailySent: dbSettings.last_daily_sent || "",
+            lastWeeklySent: dbSettings.last_weekly_sent || "",
+            lastMonthlySent: dbSettings.last_monthly_sent || "",
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("⚠️ Gagal membaca user_settings dari DB, fallback ke settings.json:", err.message);
+    }
+  }
+
   try {
     if (fs.existsSync(SETTINGS_PATH)) {
       const raw = fs.readFileSync(SETTINGS_PATH, "utf-8");
@@ -38,12 +62,21 @@ export function getSettings() {
   } catch (err) {
     console.error("❌ Gagal membaca settings.json:", err.message);
   }
-  // Create default file
-  saveSettings(DEFAULT_SETTINGS);
   return DEFAULT_SETTINGS;
 }
 
-export function saveSettings(settings) {
+export async function saveSettings(settings, ownerId) {
+  if (ownerId) {
+    try {
+      const userId = await getUserIdByTelegramId(ownerId);
+      if (userId) {
+        await saveDbUserSettings(userId, settings);
+      }
+    } catch (err) {
+      console.error("❌ Gagal menyimpan user_settings ke DB:", err.message);
+    }
+  }
+
   try {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf-8");
   } catch (err) {
@@ -58,7 +91,7 @@ export function startScheduler(bot, ownerId) {
   // Run check every 30 seconds
   setInterval(async () => {
     try {
-      const settings = getSettings();
+      const settings = await getSettings(ownerId);
       if (!settings.active) return;
 
       const now = new Date();
@@ -76,7 +109,7 @@ export function startScheduler(bot, ownerId) {
           // Trigger Daily Reminder
           await sendDailyReminder(bot, ownerId);
           settings.lastDailySent = todayStr;
-          saveSettings(settings);
+          await saveSettings(settings, ownerId);
         }
       }
 
@@ -87,7 +120,7 @@ export function startScheduler(bot, ownerId) {
         if (settings.lastWeeklySent !== weekStr) {
           await sendWeeklySummary(bot, ownerId);
           settings.lastWeeklySent = weekStr;
-          saveSettings(settings);
+          await saveSettings(settings, ownerId);
         }
       }
 
@@ -97,7 +130,7 @@ export function startScheduler(bot, ownerId) {
         if (settings.lastMonthlySent !== monthStr) {
           await sendMonthlyReport(bot, ownerId);
           settings.lastMonthlySent = monthStr;
-          saveSettings(settings);
+          await saveSettings(settings, ownerId);
         }
       }
     } catch (err) {

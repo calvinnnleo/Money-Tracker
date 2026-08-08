@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { getDbTransactions, getDbBudgets, addDbTransaction, deleteDbTransaction, hasSupabaseConfig } from "../../../lib/supabase";
+import { getDbTransactions, getDbBudgets, addDbTransaction, deleteDbTransaction, updateDbTransaction, hasSupabaseConfig } from "../../../lib/supabase";
 
 async function getAuthUser(cookieStore) {
   const supabase = createServerClient(
@@ -82,6 +82,31 @@ export async function POST(request) {
     if (hasSupabaseConfig()) {
       const newRow = await addDbTransaction(user.id, { date, type, category, amount, note });
       return NextResponse.json({ success: true, transaction: newRow });
+    } else {
+      return NextResponse.json({ success: true, offline: true });
+    }
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request) {
+  const { user } = await getAuthUser(cookies());
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { id, date, type, category, amount, note } = body;
+
+    if (!id || !date || !type || !category || amount === undefined) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (hasSupabaseConfig()) {
+      const updatedRow = await updateDbTransaction(user.id, id, { date, type, category, amount, note });
+      return NextResponse.json({ success: true, transaction: updatedRow });
     } else {
       return NextResponse.json({ success: true, offline: true });
     }

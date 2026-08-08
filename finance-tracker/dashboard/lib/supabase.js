@@ -101,6 +101,23 @@ export async function deleteDbTransaction(userId, transactionId) {
   }
 }
 
+export async function updateDbTransaction(userId, id, { date, type, category, amount, note }) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("transactions")
+    .update({ date, type, category, amount, note })
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating transaction in Supabase:", error.message);
+    throw error;
+  }
+  return data;
+}
+
 // Budget Helpers
 export async function getDbBudgets(userId) {
   if (!supabase) return [];

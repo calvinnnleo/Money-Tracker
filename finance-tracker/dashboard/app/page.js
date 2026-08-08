@@ -266,6 +266,68 @@ export default function Page() {
       });
   }, []);
 
+  // Realtime Sync Subscription (Telegram Bot <-> Dashboard)
+  useEffect(() => {
+    let channel;
+    const setupRealtime = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        channel = supabase
+          .channel("realtime-transactions-" + user.id)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "transactions",
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              console.log("⚡ [Realtime Transaction]", payload.eventType, payload);
+              if (payload.eventType === "INSERT") {
+                const newTx = payload.new;
+                setData((prev) => {
+                  const existing = prev.transactions || [];
+                  if (existing.some((t) => t.id === newTx.id)) return prev;
+                  const updated = [newTx, ...existing];
+                  localStorage.setItem("saved_server_transactions", JSON.stringify(updated));
+                  return { ...prev, transactions: updated };
+                });
+              } else if (payload.eventType === "UPDATE") {
+                const updatedTx = payload.new;
+                setData((prev) => {
+                  const existing = prev.transactions || [];
+                  const updated = existing.map((t) => (t.id === updatedTx.id ? updatedTx : t));
+                  localStorage.setItem("saved_server_transactions", JSON.stringify(updated));
+                  return { ...prev, transactions: updated };
+                });
+              } else if (payload.eventType === "DELETE") {
+                const deletedId = payload.old?.id;
+                if (!deletedId) return;
+                setData((prev) => {
+                  const existing = prev.transactions || [];
+                  const updated = existing.filter((t) => t.id !== deletedId);
+                  localStorage.setItem("saved_server_transactions", JSON.stringify(updated));
+                  return { ...prev, transactions: updated };
+                });
+              }
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.warn("Gagal inisialisasi Supabase Realtime:", err);
+      }
+    };
+
+    setupRealtime();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Budget helper functions
   const handleAddBudget = async (category, amount) => {
     // Optimistic UI update
@@ -616,6 +678,37 @@ export default function Page() {
     }
   };
 
+  const handleEditTransaction = async (updatedTx) => {
+    // Optimistic UI update
+    setLocalTransactions((prev) =>
+      prev.map((t) => (t.id === updatedTx.id ? updatedTx : t))
+    );
+    setData((prev) => {
+      if (!prev || !prev.transactions) return prev;
+      const updated = prev.transactions.map((t) => (t.id === updatedTx.id ? updatedTx : t));
+      localStorage.setItem("saved_server_transactions", JSON.stringify(updated));
+      return {
+        ...prev,
+        transactions: updated,
+      };
+    });
+
+    if (typeof updatedTx.id === "string" && updatedTx.id.startsWith("temp-")) {
+      console.warn("⚠️ Transaksi lokal belum memiliki ID database resmi, update tersimpan secara lokal.");
+      return;
+    }
+
+    try {
+      await fetch("/api/transactions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedTx),
+      });
+    } catch (err) {
+      console.error("Gagal memperbarui transaksi di database:", err.message);
+    }
+  };
+
   // Initial spinner loading
   if (loading && (!data?.transactions || data.transactions.length === 0)) {
     return (
@@ -677,6 +770,7 @@ export default function Page() {
         isDarkMode={false}
         setIsDarkMode={() => {}}
         onAddTransaction={handleAddTransaction}
+        onEditTransaction={handleEditTransaction}
         onLogout={handleLogout}
         telegramId={profile?.telegram_id}
         telegramName={profile?.display_name}

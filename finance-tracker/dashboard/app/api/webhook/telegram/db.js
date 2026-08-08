@@ -253,3 +253,16 @@ export async function deleteTransactionById(userId, transactionId) {
 
   if (error) throw error;
 }
+
+export async function updateTransactionById(userId, transactionId, { date, type, category, amount, note }) {
+  const { data, error } = await client()
+    .from("transactions")
+    .update({ date, type, category, amount, note })
+    .eq("user_id", userId)
+    .eq("id", transactionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}

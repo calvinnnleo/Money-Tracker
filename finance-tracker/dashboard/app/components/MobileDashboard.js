@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { createClient } from "../../lib/supabase-browser";
 import {
   ResponsiveContainer,
@@ -127,7 +128,7 @@ function CircularProgress({ percentage, label, sublabel, color = "#5856D6", size
     <div className="relative flex items-center justify-center">
       <svg height={radius * 2} width={radius * 2} className="transform -rotate-90">
         <circle
-          stroke="#E5E5EA"
+          stroke="var(--color-separator)"
           fill="transparent"
           strokeWidth={strokeWidth}
           r={normalizedRadius}
@@ -284,16 +285,26 @@ export default function MobileDashboard({
   setUserName,
   savingsTarget,
   setSavingsTarget,
-  isDarkMode,
+  isDarkMode: _isDarkMode,
   setIsDarkMode,
   onAddTransaction,
+  onEditTransaction,
   onLogout,
   telegramId,
   telegramName,
   onRefreshProfile,
 }) {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const isDarkMode = mounted ? resolvedTheme === "dark" : false;
+
   const [activeTab, setActiveTab] = useState("home");
   const [selectedTxForDetail, setSelectedTxForDetail] = useState(null);
+  const [editingTx, setEditingTx] = useState(null);
+  const [showEditTxModal, setShowEditTxModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -926,7 +937,7 @@ export default function MobileDashboard({
 
             {/* Unified Cash Overview Card (Consolidates Limit Progress, Masuk/Keluar/Sisa Saldo & Total Budget) */}
             <section className="px-5 mb-5 animate-slide-up stagger-1" style={{ opacity: 0, animationFillMode: "forwards" }}>
-              <div className="relative overflow-hidden bg-gradient-to-br from-[#F5EEFA] via-[#EDE4FB] to-[#F5EEFA] border border-violet/15 rounded-[28px] p-5 shadow-card">
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#F5EEFA] via-[#EDE4FB] to-[#F5EEFA] dark:from-[#1E152A] dark:via-[#161022] dark:to-[#1E152A] border border-violet/15 dark:border-violet/30 rounded-[28px] p-5 shadow-card">
                 {/* Decorative background element */}
                 <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-violet/5"></div>
 
@@ -1057,7 +1068,7 @@ export default function MobileDashboard({
                       const alpha = 0.1 + day.intensity * 0.8;
                       const cellBg = hasSpend 
                         ? `rgba(255, 59, 48, ${alpha})` 
-                        : (isDarkMode ? "#1C1C1E" : "#FFFFFF");
+                        : (isDarkMode ? "rgba(255, 255, 255, 0.05)" : "#F2F2F7");
 
                       const textClass = day.isActive
                         ? (day.intensity > 0.55 ? "text-white font-black" : (isDarkMode ? "text-zinc-100 font-black" : "text-ink font-black"))
@@ -1086,7 +1097,7 @@ export default function MobileDashboard({
                 </div>
 
                 {/* Bottom part: Agenda detail list for selected date */}
-                <div className="bg-[#F8F9FA] border-t border-separator/35 p-4">
+                <div className="bg-bg/40 border-t border-separator/35 p-4">
                   <div className="flex justify-between items-center mb-3">
                     <span className="text-[10px] font-extrabold text-secondary uppercase tracking-wider pl-0.5">
                       Detail Transaksi — {formattedSelectedDate}
@@ -1111,7 +1122,7 @@ export default function MobileDashboard({
                         <div
                           key={idx}
                           onClick={() => setSelectedTxForDetail(t)}
-                          className="flex items-center justify-between p-3.5 bg-white border border-separator/20 rounded-2xl shadow-sm cursor-pointer active:bg-bg/40 transition hover:border-separator/40 hover:shadow-sm"
+                          className="flex items-center justify-between p-3.5 bg-surface border border-separator/20 rounded-2xl shadow-sm cursor-pointer active:bg-bg/40 transition hover:border-separator/40 hover:shadow-sm"
                         >
                           <div className="flex items-center gap-3">
                             <div
@@ -1651,13 +1662,15 @@ export default function MobileDashboard({
                         />
                         <Tooltip
                           contentStyle={{
-                            background: "rgba(255,255,255,0.95)",
-                            border: "none",
+                            background: isDarkMode ? "rgba(24,24,27,0.95)" : "rgba(255,255,255,0.95)",
+                            color: isDarkMode ? "#F4F4F5" : "#1C1C1E",
+                            border: isDarkMode ? "1px solid rgba(255,255,255,0.1)" : "none",
                             borderRadius: "12px",
-                            boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                            boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
                             fontSize: "10px",
                             fontWeight: 600,
                           }}
+                          itemStyle={{ color: isDarkMode ? "#F4F4F5" : "#1C1C1E" }}
                           formatter={(value) => formatRupiah(value)}
                         />
                         <Area
@@ -1968,7 +1981,7 @@ export default function MobileDashboard({
           transition: "transform 400ms cubic-bezier(0.16, 1, 0.3, 1)"
         }}
       >
-        <div className="max-w-[480px] mx-auto px-4 pb-[max(env(safe-area-inset-bottom),12px)]">
+        <div className="max-w-[480px] mx-auto px-4 pb-3 pt-1">
           <div className={`${isDarkMode ? "glass-dark" : "glass"} h-[64px] rounded-[22px] shadow-float flex items-center justify-around px-3`}>
             {[
               { id: "home", icon: Home, label: "Home" },
@@ -2376,6 +2389,151 @@ export default function MobileDashboard({
         </div>
       )}
 
+      {/* Modal Edit Transaksi */}
+      {showEditTxModal && editingTx && (
+        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-sm uppercase tracking-wider">Edit Transaksi</h3>
+              <button 
+                onClick={() => { setShowEditTxModal(false); setEditingTx(null); }}
+                className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition"
+              >
+                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Type Switcher */}
+              <div className="flex p-1 bg-bg dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => { setTxType("Expense"); setTxCategory("Makanan"); }}
+                  className={`flex-1 py-2 text-[10px] font-extrabold uppercase tracking-wider rounded-xl transition ${
+                    txType === "Expense" 
+                      ? "bg-red text-white shadow-sm" 
+                      : "text-secondary dark:text-zinc-400"
+                  }`}
+                >
+                  Keluar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTxType("Income"); setTxCategory("Gaji"); }}
+                  className={`flex-1 py-2 text-[10px] font-extrabold uppercase tracking-wider rounded-xl transition ${
+                    txType === "Income" 
+                      ? "bg-green text-white shadow-sm" 
+                      : "text-secondary dark:text-zinc-400"
+                  }`}
+                >
+                  Masuk
+                </button>
+              </div>
+
+              {/* Amount Input */}
+              <div>
+                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1 pl-0.5">Jumlah Uang</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-extrabold text-xs text-secondary">Rp</span>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={txAmount}
+                    onChange={(e) => setTxAmount(e.target.value)}
+                    className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl pl-9 pr-4 py-3 text-xs font-black placeholder-secondary/70 focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100"
+                  />
+                </div>
+              </div>
+
+              {/* Category selector */}
+              <div>
+                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1 pl-0.5">Kategori</label>
+                <select
+                  value={txCategory}
+                  onChange={(e) => setTxCategory(e.target.value)}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition appearance-none cursor-pointer text-ink dark:text-zinc-100"
+                >
+                  {txType === "Expense" ? (
+                    ["Makanan", "Transportasi", "Belanja", "Tagihan", "Hiburan", "Kesehatan", "Pendidikan", "Investasi", "Donasi", "Lainnya"].map(c => (
+                      <option key={c} value={c}>{getCategoryEmoji(c)} {c}</option>
+                    ))
+                  ) : (
+                    ["Gaji", "Investasi", "Lainnya"].map(c => (
+                      <option key={c} value={c}>{getCategoryEmoji(c)} {c}</option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* Note input */}
+              <div>
+                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1 pl-0.5">Catatan / Deskripsi</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Kopi pagi, Bonus lembur"
+                  value={txNote}
+                  onChange={(e) => setTxNote(e.target.value)}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl px-3.5 py-3 text-xs font-bold placeholder-secondary/70 focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100"
+                />
+              </div>
+
+              {/* Date input */}
+              <div>
+                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1.5 pl-0.5">Tanggal</label>
+                <input
+                  type="date"
+                  value={txDate}
+                  onChange={(e) => setTxDate(e.target.value)}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl px-3.5 py-3 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditTxModal(false); setEditingTx(null); }}
+                  className="flex-1 py-3.5 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary dark:text-zinc-300 font-bold text-xs uppercase tracking-wider active:scale-95 transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    if (isSubmitting) return;
+                    const amount = parseFloat(txAmount);
+                    if (isNaN(amount) || amount <= 0) return;
+                    setIsSubmitting(true);
+                    try {
+                      if (onEditTransaction) {
+                        await onEditTransaction({
+                          id: editingTx.id,
+                          date: txDate,
+                          category: txCategory,
+                          note: txNote.trim(),
+                          amount,
+                          type: txType,
+                        });
+                      }
+                      setShowEditTxModal(false);
+                      setEditingTx(null);
+                    } catch (e) {
+                      console.error("Gagal mengupdate transaksi:", e);
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  className="flex-1 py-3.5 rounded-2xl bg-violet disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition shadow-glow-violet/20"
+                >
+                  {isSubmitting ? "Menyimpan..." : "Update"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal 4: Pengaturan Profil & Settings */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
@@ -2444,6 +2602,24 @@ export default function MobileDashboard({
                   onChange={(e) => setSettingName(e.target.value)}
                   className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3.5 text-xs font-bold placeholder-secondary/70 focus:ring-2 focus:ring-violet focus:outline-none transition text-ink dark:text-zinc-100"
                 />
+              </div>
+
+              {/* Tema Tampilan (Dark / Light Mode) */}
+              <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
+                <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Tampilan Aplikasi</span>
+                <div className="flex items-center justify-between bg-white dark:bg-zinc-800 p-3 rounded-xl border border-separator/25 dark:border-zinc-700/60">
+                  <div>
+                    <span className="text-[11px] font-bold text-ink dark:text-zinc-200 block">Tema Tampilan</span>
+                    <span className="text-[9px] text-secondary font-medium block mt-0.5">Mode Terang / Gelap</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                    className="px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition bg-violet/10 text-violet border border-violet/20 active:scale-95 flex items-center gap-1.5"
+                  >
+                    {resolvedTheme === "dark" ? "🌙 Mode Gelap" : "☀️ Mode Terang"}
+                  </button>
+                </div>
               </div>
 
               {/* Reset Saldo Gajian / Carryover */}
@@ -2760,10 +2936,21 @@ export default function MobileDashboard({
               <div className="pt-2 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedTxForDetail(null)}
-                  className="flex-1 py-3.5 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary dark:text-zinc-300 font-bold text-xs uppercase tracking-wider active:scale-95 transition"
+                  onClick={() => {
+                    const txToEdit = selectedTxForDetail;
+                    setEditingTx(txToEdit);
+                    setTxType(txToEdit.type || "Expense");
+                    setTxAmount(txToEdit.amount ? txToEdit.amount.toString() : "");
+                    setTxCategory(txToEdit.category || "Makanan");
+                    setTxNote(txToEdit.note || "");
+                    setTxDate(txToEdit.date || new Date().toISOString().slice(0, 10));
+                    setSelectedTxForDetail(null);
+                    setShowEditTxModal(true);
+                  }}
+                  className="flex-1 py-3.5 rounded-2xl bg-violet/10 hover:bg-violet/20 text-violet font-bold text-xs uppercase tracking-wider active:scale-95 transition border border-violet/20 flex items-center justify-center gap-1.5"
                 >
-                  Tutup
+                  <Edit2 className="w-3.5 h-3.5" />
+                  Edit
                 </button>
                 <button
                   type="button"

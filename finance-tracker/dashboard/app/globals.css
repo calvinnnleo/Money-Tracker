@@ -4,10 +4,40 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 
+/* ── CSS Variables (Light Mode) ─────────────────────────────────────── */
+:root {
+  --color-bg:         #F2F2F7;
+  --color-surface:    #FFFFFF;
+  --color-ink:        #1C1C1E;
+  --color-secondary:  #8E8E93;
+  --color-separator:  #E5E5EA;
+  --color-card-shadow: rgba(0, 0, 0, 0.08);
+  --color-green-bg:   #E8F9ED;
+  --color-red-bg:     #FFECEB;
+  --color-blue-bg:    #EBF2FF;
+  --color-orange-bg:  #FFF4E5;
+  --color-violet-bg:  #F5EEFA;
+}
+
+/* ── CSS Variables (Dark Mode) ──────────────────────────────────────── */
+html.dark, :root.dark, .dark {
+  --color-bg:         #09090B;
+  --color-surface:    #18181B;
+  --color-ink:        #F4F4F5;
+  --color-secondary:  #A1A1AA;
+  --color-separator:  #27272A;
+  --color-card-shadow: rgba(0, 0, 0, 0.5);
+  --color-green-bg:   rgba(52, 199, 89, 0.15);
+  --color-red-bg:     rgba(255, 59, 48, 0.15);
+  --color-blue-bg:    rgba(0, 122, 255, 0.15);
+  --color-orange-bg:  rgba(255, 149, 0, 0.15);
+  --color-violet-bg:  rgba(175, 82, 222, 0.15);
+}
+
 /* iOS-style base styles */
 body {
-  background-color: #F2F2F7;
-  color: #1C1C1E;
+  background-color: var(--color-bg);
+  color: var(--color-ink);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
@@ -15,6 +45,7 @@ body {
   overscroll-behavior-y: contain;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Safe area for mobile notch + dynamic island */
@@ -28,11 +59,12 @@ body {
 
 /* Apple-style card */
 .card {
-  background-color: #FFFFFF;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
   border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--color-card-shadow);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
-  border: 1px solid rgba(0, 0, 0, 0.01);
+  border: 1px solid var(--color-separator);
 }
 
 /* Glassmorphism utility */
@@ -47,10 +79,10 @@ body {
 }
 
 .glass-dark {
-  background: rgba(28, 28, 30, 0.72);
+  background: rgba(24, 24, 27, 0.85);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   will-change: transform, opacity, backdrop-filter;
@@ -74,16 +106,16 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #C7C7CC;
+  background: var(--color-separator);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #AEAEB2;
+  background: var(--color-secondary);
 }
 
 /* Skeleton loader shimmer */
 .skeleton {
-  background: linear-gradient(90deg, #E5E5EA 25%, #F2F2F7 50%, #E5E5EA 75%);
+  background: linear-gradient(90deg, var(--color-separator) 25%, var(--color-bg) 50%, var(--color-separator) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 8px;
@@ -102,7 +134,7 @@ body {
 .progress-bar {
   height: 8px;
   border-radius: 4px;
-  background-color: #E5E5EA;
+  background-color: var(--color-separator);
   overflow: hidden;
 }
 
@@ -138,16 +170,16 @@ body {
 }
 
 .btn-apple-secondary {
-  background-color: #FFFFFF;
+  background-color: var(--color-surface);
   color: #007AFF;
   font-weight: 600;
   padding: 10px 20px;
   border-radius: 14px;
-  border: 1px solid #E5E5EA;
+  border: 1px solid var(--color-separator);
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 .btn-apple-secondary:active {
-  background-color: #F2F2F7;
+  background-color: var(--color-bg);
   transform: scale(0.97);
 }
 
@@ -184,17 +216,17 @@ body {
   font-weight: 700;
   transition: all 0.2s ease;
   cursor: pointer;
-  border: 1px solid #E5E5EA;
-  background: #FFFFFF;
-  color: #8E8E93;
+  border: 1px solid var(--color-separator);
+  background: var(--color-surface);
+  color: var(--color-secondary);
 }
 .chip:active {
   transform: scale(0.96);
 }
 .chip-active {
-  background: #1C1C1E;
-  color: #FFFFFF;
-  border-color: #1C1C1E;
+  background: var(--color-ink);
+  color: var(--color-surface);
+  border-color: var(--color-ink);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 

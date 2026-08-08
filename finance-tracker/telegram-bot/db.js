@@ -260,3 +260,53 @@ export async function deleteTransactionById(userId, transactionId) {
   if (error) throw error;
 }
 
+export async function updateTransactionById(userId, transactionId, { date, type, category, amount, note }) {
+  const { data, error } = await client()
+    .from("transactions")
+    .update({ date, type, category, amount, note })
+    .eq("user_id", userId)
+    .eq("id", transactionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getUserSettings(userId) {
+  const { data, error } = await client()
+    .from("user_settings")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Gagal get user_settings:", error.message);
+    return null;
+  }
+  return data;
+}
+
+export async function saveUserSettings(userId, settingsObj) {
+  const payload = {
+    user_id: userId,
+    reminder_active: settingsObj.active ?? true,
+    reminder_time: settingsObj.time || "21:00",
+    reminder_days: settingsObj.days || [1, 2, 3, 4, 5],
+    weekly_summary: settingsObj.weeklySummary ?? true,
+    monthly_report: settingsObj.monthlyReport ?? true,
+    last_daily_sent: settingsObj.lastDailySent || "",
+    last_weekly_sent: settingsObj.lastWeeklySent || "",
+    last_monthly_sent: settingsObj.lastMonthlySent || "",
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await client()
+    .from("user_settings")
+    .upsert(payload, { onConflict: "user_id" });
+
+  if (error) {
+    console.error("Gagal save user_settings:", error.message);
+  }
+}
+
