@@ -338,6 +338,45 @@ export default function MobileDashboard({
   const [txDate, setTxDate] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // New Feature States (Multi-Wallet, Debts, Goals, Recurring, Categories)
+  const [wallets, setWallets] = useState([
+    { id: "default-cash", name: "Cash / Tunai", emoji: "💵", color: "#34C759", initial_balance: 0, type: "cash" },
+    { id: "default-bca", name: "BCA / Bank", emoji: "🏦", color: "#007AFF", initial_balance: 0, type: "debit" },
+    { id: "default-gopay", name: "GoPay / E-Wallet", emoji: "🟢", color: "#AF52DE", initial_balance: 0, type: "ewallet" },
+  ]);
+  const [debts, setDebts] = useState([]);
+  const [recurring, setRecurring] = useState([]);
+  const [goals, setGoals] = useState([]);
+  const [customCategories, setCustomCategories] = useState([]);
+  const [selectedWalletId, setSelectedWalletId] = useState("");
+
+  // New Modal States
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showDebtModal, setShowDebtModal] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [showGoalDepositModal, setShowGoalDepositModal] = useState(false);
+  const [selectedGoalForDeposit, setSelectedGoalForDeposit] = useState(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
+
+  // New Form Inputs
+  const [walletForm, setWalletForm] = useState({ name: "", emoji: "💳", color: "#AF52DE", type: "debit", initial_balance: "" });
+  const [transferForm, setTransferForm] = useState({ from_wallet_id: "", to_wallet_id: "", amount: "", note: "" });
+  const [debtForm, setDebtForm] = useState({ direction: "owed_to_me", person_name: "", amount: "", note: "", due_date: "" });
+  const [goalForm, setGoalForm] = useState({ title: "", target_amount: "", target_date: "", emoji: "🎯", color: "#AF52DE" });
+  const [depositAmount, setDepositAmount] = useState("");
+  const [categoryForm, setCategoryForm] = useState({ name: "", emoji: "🏷️", color: "#8E8E93" });
+  const [recurringForm, setRecurringForm] = useState({ title: "", type: "Expense", category: "Lainnya", amount: "", frequency: "monthly" });
+
+  useEffect(() => {
+    fetch("/api/wallets").then(r => r.json()).then(d => { if (d.wallets && d.wallets.length > 0) setWallets(d.wallets); }).catch(() => {});
+    fetch("/api/debts").then(r => r.json()).then(d => { if (d.debts) setDebts(d.debts); }).catch(() => {});
+    fetch("/api/recurring").then(r => r.json()).then(d => { if (d.recurring) setRecurring(d.recurring); }).catch(() => {});
+    fetch("/api/goals").then(r => r.json()).then(d => { if (d.goals) setGoals(d.goals); }).catch(() => {});
+    fetch("/api/categories").then(r => r.json()).then(d => { if (d.categories) setCustomCategories(d.categories); }).catch(() => {});
+  }, []);
   const [isEditingSavingsTarget, setIsEditingSavingsTarget] = useState(false);
   const [tempSavingsTarget, setTempSavingsTarget] = useState(savingsTarget.toString());
 
@@ -875,6 +914,34 @@ export default function MobileDashboard({
     return alerts;
   }, [categoryData, savingsTarget, balance, data.budgets, monthlyData, stats]);
 
+  // Financial Health Score (0-100)
+  const healthScore = useMemo(() => {
+    const inc = monthlyData?.income || 0;
+    const exp = monthlyData?.expense || 0;
+    const savRate = inc > 0 ? Math.max((inc - exp) / inc, 0) : 0;
+    const savScore = Math.round(Math.min(savRate * 100, 30));
+
+    const totalCat = categoryData.length;
+    const safeCat = categoryData.filter(c => c.budget === 0 || c.spent <= c.budget).length;
+    const budScore = totalCat > 0 ? Math.round((safeCat / totalCat) * 30) : 30;
+
+    const activeDays = new Set(data.transactions.map(t => t.date)).size;
+    const conScore = Math.min(Math.round((activeDays / 15) * 20), 20);
+
+    const activeDebt = debts.filter(d => !d.settled && d.direction === "i_owe").reduce((a, d) => a + Number(d.amount), 0);
+    const debtScore = activeDebt === 0 ? 20 : Math.max(20 - Math.round((activeDebt / (inc || 1000000)) * 20), 0);
+
+    return Math.min(Math.max(savScore + budScore + conScore + debtScore, 0), 100);
+  }, [monthlyData, categoryData, data.transactions, debts]);
+
+  const healthScoreBadge = healthScore >= 80 
+    ? { label: "Sangat Sehat", color: "text-green bg-green/10 border-green/20" }
+    : healthScore >= 60 
+    ? { label: "Sehat", color: "text-blue bg-blue/10 border-blue/20" }
+    : healthScore >= 40 
+    ? { label: "Cukup", color: "text-orange bg-orange/10 border-orange/20" }
+    : { label: "Kritis", color: "text-red bg-red/10 border-red/20" };
+
   // ─── Tab Content Renderers ──────────────────────────────────────────────
 
   const greeting = getGreeting();
@@ -1024,6 +1091,182 @@ export default function MobileDashboard({
                 </div>
               </div>
             </section>
+
+            {/* 💳 Multi-Wallet Carousel Section */}
+            <section className="px-5 mb-5 animate-slide-up stagger-1">
+              <div className="flex justify-between items-center mb-2.5">
+                <span className="text-[10px] font-black text-secondary dark:text-zinc-400 uppercase tracking-wider">
+                  Dompet & Rekening ({wallets.length})
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowTransferModal(true)}
+                    className="text-[9px] font-extrabold text-violet bg-violet/10 dark:bg-violet/20 px-2.5 py-1 rounded-xl transition active:scale-95 flex items-center gap-1"
+                  >
+                    <span>⇄ Transfer</span>
+                  </button>
+                  <button
+                    onClick={() => setShowWalletModal(true)}
+                    className="text-[9px] font-extrabold text-white bg-violet px-2.5 py-1 rounded-xl transition active:scale-95 shadow-glow-violet/20 flex items-center gap-1"
+                  >
+                    <span>+ Dompet</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
+                {wallets.map((w) => {
+                  const walletSpend = data.transactions
+                    .filter((t) => t.wallet_id === w.id || (!t.wallet_id && w.id.startsWith("default-cash")))
+                    .reduce((acc, t) => acc + (t.type === "Expense" ? -Number(t.amount) : Number(t.amount)), 0);
+                  const displayBalance = (Number(w.initial_balance) || 0) + walletSpend;
+
+                  return (
+                    <div
+                      key={w.id}
+                      className="min-w-[140px] p-3.5 rounded-2xl bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 shadow-card flex flex-col justify-between"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xl">{w.emoji || "💳"}</span>
+                        <span className="text-[8px] font-extrabold px-2 py-0.5 rounded-full bg-bg dark:bg-zinc-800 text-secondary uppercase">
+                          {w.type || "debit"}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-secondary dark:text-zinc-400 truncate">{w.name}</p>
+                        <p className="text-xs font-black text-ink dark:text-zinc-100 tabular-nums mt-0.5">
+                          {formatRupiah(displayBalance)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* 🤝 Hutang Piutang (Debts) Section */}
+            {debts.length > 0 && (
+              <section className="px-5 mb-5 animate-slide-up stagger-2">
+                <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 rounded-3xl p-4 shadow-card">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🤝</span>
+                      <h3 className="font-extrabold text-ink dark:text-zinc-100 text-[12px]">Hutang & Piutang</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowDebtModal(true)}
+                      className="text-[9px] font-extrabold text-violet bg-violet/10 px-2.5 py-1 rounded-xl active:scale-95 transition"
+                    >
+                      + Catat
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {debts.slice(0, 3).map((d) => (
+                      <div
+                        key={d.id}
+                        className="flex items-center justify-between p-3 rounded-2xl bg-bg/50 dark:bg-zinc-800/60 border border-separator/20 dark:border-zinc-700/40"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className={`w-2 h-2 rounded-full ${d.direction === "owed_to_me" ? "bg-green" : "bg-red"}`} />
+                          <div>
+                            <p className="font-bold text-ink dark:text-zinc-100 text-xs leading-tight">
+                              {d.person_name}
+                              <span className="text-[9px] font-semibold text-secondary ml-1.5">
+                                ({d.direction === "owed_to_me" ? "Piutang" : "Utang"})
+                              </span>
+                            </p>
+                            <p className="text-[9px] text-secondary font-medium mt-0.5">{d.note || "Catatan kosong"}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className={`font-black text-xs ${d.direction === "owed_to_me" ? "text-green" : "text-red"}`}>
+                            {formatRupiah(d.amount)}
+                          </span>
+                          {!d.settled ? (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await fetch("/api/debts", {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ id: d.id, action: "settle" }),
+                                  });
+                                  setDebts((prev) => prev.map((item) => (item.id === d.id ? { ...item, settled: true } : item)));
+                                } catch (err) {
+                                  console.error("Gagal melunasi debt:", err);
+                                }
+                              }}
+                              className="text-[8px] font-black bg-green/10 text-green px-2 py-1 rounded-lg hover:bg-green/20 transition active:scale-95 uppercase tracking-wider"
+                            >
+                              Lunas
+                            </button>
+                          ) : (
+                            <span className="text-[8px] font-bold text-secondary uppercase">Lunas ✅</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 🎯 Savings Goals Section */}
+            {goals.length > 0 && (
+              <section className="px-5 mb-5 animate-slide-up stagger-2">
+                <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 rounded-3xl p-4 shadow-card">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🎯</span>
+                      <h3 className="font-extrabold text-ink dark:text-zinc-100 text-[12px]">Target Tabungan</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowGoalModal(true)}
+                      className="text-[9px] font-extrabold text-violet bg-violet/10 px-2.5 py-1 rounded-xl active:scale-95 transition"
+                    >
+                      + Target Baru
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {goals.map((g) => {
+                      const pct = Math.min(Math.round(((g.current_amount || 0) / g.target_amount) * 100), 100);
+                      return (
+                        <div key={g.id} className="p-3 rounded-2xl bg-bg/50 dark:bg-zinc-800/60 border border-separator/20 dark:border-zinc-700/40">
+                          <div className="flex justify-between items-center mb-1.5">
+                            <span className="font-bold text-ink dark:text-zinc-100 text-xs flex items-center gap-1.5">
+                              <span>{g.emoji || "🎯"}</span>
+                              <span>{g.title}</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black text-violet">{pct}%</span>
+                              <button
+                                onClick={() => {
+                                  setSelectedGoalForDeposit(g);
+                                  setShowGoalDepositModal(true);
+                                }}
+                                className="text-[8px] font-black bg-violet text-white px-2 py-0.5 rounded-lg active:scale-95 transition uppercase"
+                              >
+                                + Setor
+                              </button>
+                            </div>
+                          </div>
+                          <div className="w-full bg-separator/30 dark:bg-zinc-700 h-2 rounded-full overflow-hidden mb-1">
+                            <div className="bg-violet h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                          </div>
+                          <div className="flex justify-between text-[9px] font-semibold text-secondary dark:text-zinc-400">
+                            <span>Terkumpul: {formatRupiah(g.current_amount || 0)}</span>
+                            <span>Target: {formatRupiah(g.target_amount)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* Unified Calendar & Agenda list (Google Calendar Style) */}
             <section className="px-5 mb-5 animate-slide-up stagger-2" style={{ opacity: 0, animationFillMode: "forwards" }}>
