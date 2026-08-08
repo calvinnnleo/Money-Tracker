@@ -2564,18 +2564,40 @@ export default function MobileDashboard({
                 </div>
               </div>
 
+              {/* Dompet / Rekening Selector */}
+              <div>
+                <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1 pl-0.5">Dompet / Sumber Saldo</label>
+                <select
+                  value={selectedWalletId}
+                  onChange={(e) => setSelectedWalletId(e.target.value)}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl px-3.5 py-3 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition cursor-pointer text-ink dark:text-zinc-100"
+                >
+                  <option value="">Cash / Kas Utama (Default)</option>
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.emoji || "💳"} {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Category selector */}
               <div>
                 <label className="text-[9px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block mb-1 pl-0.5">Kategori</label>
                 <select
                   value={txCategory}
                   onChange={(e) => setTxCategory(e.target.value)}
-                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition appearance-none cursor-pointer text-ink dark:text-zinc-100"
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl px-3 py-3 text-xs font-bold focus:ring-2 focus:ring-violet focus:outline-none transition cursor-pointer text-ink dark:text-zinc-100"
                 >
                   {txType === "Expense" ? (
-                    ["Makanan", "Transportasi", "Belanja", "Tagihan", "Hiburan", "Kesehatan", "Pendidikan", "Investasi", "Donasi", "Lainnya"].map(c => (
-                      <option key={c} value={c}>{getCategoryEmoji(c)} {c}</option>
-                    ))
+                    <>
+                      {["Makanan", "Transportasi", "Belanja", "Tagihan", "Hiburan", "Kesehatan", "Pendidikan", "Investasi", "Donasi", "Lainnya"].map(c => (
+                        <option key={c} value={c}>{getCategoryEmoji(c)} {c}</option>
+                      ))}
+                      {customCategories.map(cc => (
+                        <option key={cc.id || cc.name} value={cc.name}>{cc.emoji || "🏷️"} {cc.name}</option>
+                      ))}
+                    </>
                   ) : (
                     ["Gaji", "Investasi", "Lainnya"].map(c => (
                       <option key={c} value={c}>{getCategoryEmoji(c)} {c}</option>
@@ -2631,6 +2653,7 @@ export default function MobileDashboard({
                         note: txNote.trim(),
                         amount,
                         type: txType,
+                        wallet_id: selectedWalletId || undefined,
                       });
                       setTxAmount("");
                       setTxNote("");
