@@ -158,3 +158,210 @@ export async function deleteDbBudget(userId, category) {
     throw error;
   }
 }
+
+// Wallet Helpers
+export async function getDbWallets(userId) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("wallets")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_archived", false)
+    .order("sort_order", { ascending: true });
+  if (error) {
+    console.error("Error fetching wallets:", error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function addDbWallet(userId, wallet) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("wallets")
+    .insert([{ ...wallet, user_id: userId }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function addDbWalletTransfer(userId, { from_wallet_id, to_wallet_id, amount, note, date }) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("wallet_transfers")
+    .insert([{ user_id: userId, from_wallet_id, to_wallet_id, amount, note, date: date || new Date().toISOString().split("T")[0] }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Debt Helpers
+export async function getDbDebts(userId) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("debts")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("Error fetching debts:", error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function addDbDebt(userId, debt) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("debts")
+    .insert([{ ...debt, user_id: userId }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function settleDbDebt(userId, debtId) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("debts")
+    .update({ settled: true, settled_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("id", debtId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteDbDebt(userId, debtId) {
+  if (!supabase) return;
+  const { error } = await supabase.from("debts").delete().eq("user_id", userId).eq("id", debtId);
+  if (error) throw error;
+}
+
+// Recurring Helpers
+export async function getDbRecurring(userId) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("recurring_transactions")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return data || [];
+}
+
+export async function addDbRecurring(userId, item) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("recurring_transactions")
+    .insert([{ ...item, user_id: userId }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function toggleDbRecurring(userId, id, isActive) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("recurring_transactions")
+    .update({ is_active: isActive })
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteDbRecurring(userId, id) {
+  if (!supabase) return;
+  const { error } = await supabase.from("recurring_transactions").delete().eq("user_id", userId).eq("id", id);
+  if (error) throw error;
+}
+
+// Savings Goals Helpers
+export async function getDbGoals(userId) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("savings_goals")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return data || [];
+}
+
+export async function addDbGoal(userId, goal) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("savings_goals")
+    .insert([{ ...goal, user_id: userId }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function addDbGoalContribution(userId, goalId, amount, note) {
+  if (!supabase) return null;
+  // 1. Add contribution
+  const { error: contribError } = await supabase
+    .from("goal_contributions")
+    .insert([{ goal_id: goalId, user_id: userId, amount, note }]);
+  if (contribError) throw contribError;
+
+  // 2. Fetch current goal & increment amount
+  const { data: goal } = await supabase.from("savings_goals").select("current_amount, target_amount").eq("id", goalId).single();
+  if (goal) {
+    const newAmount = (Number(goal.current_amount) || 0) + Number(amount);
+    const isCompleted = newAmount >= Number(goal.target_amount);
+    const { data: updatedGoal, error: updateError } = await supabase
+      .from("savings_goals")
+      .update({ current_amount: newAmount, is_completed: isCompleted })
+      .eq("id", goalId)
+      .select()
+      .single();
+    if (updateError) throw updateError;
+    return updatedGoal;
+  }
+  return null;
+}
+
+export async function deleteDbGoal(userId, goalId) {
+  if (!supabase) return;
+  const { error } = await supabase.from("savings_goals").delete().eq("user_id", userId).eq("id", goalId);
+  if (error) throw error;
+}
+
+// Custom Categories Helpers
+export async function getDbCategories(userId) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("user_id", userId);
+  if (error) return [];
+  return data || [];
+}
+
+export async function addDbCategory(userId, { name, emoji, color, type }) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("categories")
+    .upsert({ user_id: userId, name, emoji: emoji || "🏷️", color: color || "#8E8E93", type: type || "Expense" }, { onConflict: "user_id, name" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteDbCategory(userId, categoryId) {
+  if (!supabase) return;
+  const { error } = await supabase.from("categories").delete().eq("user_id", userId).eq("id", categoryId);
+  if (error) throw error;
+}
