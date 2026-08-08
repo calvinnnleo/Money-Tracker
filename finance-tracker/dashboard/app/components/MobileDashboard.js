@@ -1224,69 +1224,6 @@ export default function MobileDashboard({
               </div>
             </section>
 
-            {/* 🎯 Savings Goals Section */}
-            <section className="px-5 mb-5 animate-slide-up stagger-2">
-              <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 rounded-3xl p-4 shadow-card">
-                <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">🎯</span>
-                    <h3 className="font-extrabold text-ink dark:text-zinc-100 text-[12px]">Target Tabungan</h3>
-                  </div>
-                  <button
-                    onClick={() => setShowGoalModal(true)}
-                    className="text-[9px] font-extrabold text-violet bg-violet/10 px-2.5 py-1 rounded-xl active:scale-95 transition"
-                  >
-                    + Target Baru
-                  </button>
-                </div>
-
-                {goals.length === 0 ? (
-                  <div 
-                    onClick={() => setShowGoalModal(true)}
-                    className="p-3.5 rounded-2xl bg-bg/50 dark:bg-zinc-800/40 border border-dashed border-separator/50 dark:border-zinc-700/60 text-center cursor-pointer hover:border-violet transition"
-                  >
-                    <p className="text-[11px] font-bold text-ink dark:text-zinc-200">Belum Ada Target Tabungan</p>
-                    <p className="text-[9px] text-secondary dark:text-zinc-400 mt-0.5">Tap di sini untuk membuat impian tabungan baru.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {goals.map((g) => {
-                      const pct = Math.min(Math.round(((g.current_amount || 0) / g.target_amount) * 100), 100);
-                      return (
-                        <div key={g.id} className="p-3 rounded-2xl bg-bg/50 dark:bg-zinc-800/60 border border-separator/20 dark:border-zinc-700/40">
-                          <div className="flex justify-between items-center mb-1.5">
-                            <span className="font-bold text-ink dark:text-zinc-100 text-xs flex items-center gap-1.5">
-                              <span>{g.emoji || "🎯"}</span>
-                              <span>{g.title}</span>
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black text-violet">{pct}%</span>
-                              <button
-                                onClick={() => {
-                                  setSelectedGoalForDeposit(g);
-                                  setShowGoalDepositModal(true);
-                                }}
-                                className="text-[8px] font-black bg-violet text-white px-2 py-0.5 rounded-lg active:scale-95 transition uppercase"
-                              >
-                                + Setor
-                              </button>
-                            </div>
-                          </div>
-                          <div className="w-full bg-separator/30 dark:bg-zinc-700 h-2 rounded-full overflow-hidden mb-1">
-                            <div className="bg-violet h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-                          </div>
-                          <div className="flex justify-between text-[9px] font-semibold text-secondary dark:text-zinc-400">
-                            <span>Terkumpul: {formatRupiah(g.current_amount || 0)}</span>
-                            <span>Target: {formatRupiah(g.target_amount)}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
-
             {/* Unified Calendar & Agenda list (Google Calendar Style) */}
             <section className="px-5 mb-5 animate-slide-up stagger-2" style={{ opacity: 0, animationFillMode: "forwards" }}>
               <div className="bg-surface border border-separator/30 rounded-3xl shadow-card overflow-hidden">
@@ -1413,6 +1350,69 @@ export default function MobileDashboard({
                     </div>
                   )}
                 </div>
+              </div>
+            </section>
+
+            {/* 🎯 Savings Goals Section */}
+            <section className="px-5 mb-5 animate-slide-up stagger-2">
+              <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 rounded-3xl p-4 shadow-card">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🎯</span>
+                    <h3 className="font-extrabold text-ink dark:text-zinc-100 text-[12px]">Target Tabungan</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowGoalModal(true)}
+                    className="text-[9px] font-extrabold text-violet bg-violet/10 px-2.5 py-1 rounded-xl active:scale-95 transition"
+                  >
+                    + Target Baru
+                  </button>
+                </div>
+
+                {goals.length === 0 ? (
+                  <div 
+                    onClick={() => setShowGoalModal(true)}
+                    className="p-3.5 rounded-2xl bg-bg/50 dark:bg-zinc-800/40 border border-dashed border-separator/50 dark:border-zinc-700/60 text-center cursor-pointer hover:border-violet transition"
+                  >
+                    <p className="text-[11px] font-bold text-ink dark:text-zinc-200">Belum Ada Target Tabungan</p>
+                    <p className="text-[9px] text-secondary dark:text-zinc-400 mt-0.5">Tap di sini untuk membuat impian tabungan baru.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {goals.map((g) => {
+                      const pct = Math.min(Math.round(((g.current_amount || 0) / g.target_amount) * 100), 100);
+                      return (
+                        <div key={g.id} className="p-3 rounded-2xl bg-bg/50 dark:bg-zinc-800/60 border border-separator/20 dark:border-zinc-700/40">
+                          <div className="flex justify-between items-center mb-1.5">
+                            <span className="font-bold text-ink dark:text-zinc-100 text-xs flex items-center gap-1.5">
+                              <span>{g.emoji || "🎯"}</span>
+                              <span>{g.title}</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black text-violet">{pct}%</span>
+                              <button
+                                onClick={() => {
+                                  setSelectedGoalForDeposit(g);
+                                  setShowGoalDepositModal(true);
+                                }}
+                                className="text-[8px] font-black bg-violet text-white px-2 py-0.5 rounded-lg active:scale-95 transition uppercase"
+                              >
+                                + Setor
+                              </button>
+                            </div>
+                          </div>
+                          <div className="w-full bg-separator/30 dark:bg-zinc-700 h-2 rounded-full overflow-hidden mb-1">
+                            <div className="bg-violet h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                          </div>
+                          <div className="flex justify-between text-[9px] font-semibold text-secondary dark:text-zinc-400">
+                            <span>Terkumpul: {formatRupiah(g.current_amount || 0)}</span>
+                            <span>Target: {formatRupiah(g.target_amount)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </section>
 
