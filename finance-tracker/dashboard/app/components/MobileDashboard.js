@@ -977,6 +977,9 @@ export default function MobileDashboard({
                     {greeting} {greetingEmoji}
                   </p>
                   <h2 className="font-black text-ink dark:text-zinc-100 text-[15px] leading-tight -mt-0.5">{userName}</h2>
+                  <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md border mt-0.5 inline-block ${healthScoreBadge.color}`}>
+                    Skor Keuangan {healthScore}: {healthScoreBadge.label}
+                  </span>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1145,22 +1148,30 @@ export default function MobileDashboard({
             </section>
 
             {/* 🤝 Hutang Piutang (Debts) Section */}
-            {debts.length > 0 && (
-              <section className="px-5 mb-5 animate-slide-up stagger-2">
-                <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 rounded-3xl p-4 shadow-card">
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🤝</span>
-                      <h3 className="font-extrabold text-ink dark:text-zinc-100 text-[12px]">Hutang & Piutang</h3>
-                    </div>
-                    <button
-                      onClick={() => setShowDebtModal(true)}
-                      className="text-[9px] font-extrabold text-violet bg-violet/10 px-2.5 py-1 rounded-xl active:scale-95 transition"
-                    >
-                      + Catat
-                    </button>
+            <section className="px-5 mb-5 animate-slide-up stagger-2">
+              <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 rounded-3xl p-4 shadow-card">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🤝</span>
+                    <h3 className="font-extrabold text-ink dark:text-zinc-100 text-[12px]">Hutang & Piutang</h3>
                   </div>
+                  <button
+                    onClick={() => setShowDebtModal(true)}
+                    className="text-[9px] font-extrabold text-violet bg-violet/10 px-2.5 py-1 rounded-xl active:scale-95 transition"
+                  >
+                    + Catat
+                  </button>
+                </div>
 
+                {debts.length === 0 ? (
+                  <div 
+                    onClick={() => setShowDebtModal(true)}
+                    className="p-3.5 rounded-2xl bg-bg/50 dark:bg-zinc-800/40 border border-dashed border-separator/50 dark:border-zinc-700/60 text-center cursor-pointer hover:border-violet transition"
+                  >
+                    <p className="text-[11px] font-bold text-ink dark:text-zinc-200">Belum Ada Catatan Hutang/Piutang</p>
+                    <p className="text-[9px] text-secondary dark:text-zinc-400 mt-0.5">Tap di sini untuk mencatat pinjaman atau piutang teman.</p>
+                  </div>
+                ) : (
                   <div className="space-y-2">
                     {debts.slice(0, 3).map((d) => (
                       <div
@@ -1209,27 +1220,35 @@ export default function MobileDashboard({
                       </div>
                     ))}
                   </div>
-                </div>
-              </section>
-            )}
+                )}
+              </div>
+            </section>
 
             {/* 🎯 Savings Goals Section */}
-            {goals.length > 0 && (
-              <section className="px-5 mb-5 animate-slide-up stagger-2">
-                <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 rounded-3xl p-4 shadow-card">
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🎯</span>
-                      <h3 className="font-extrabold text-ink dark:text-zinc-100 text-[12px]">Target Tabungan</h3>
-                    </div>
-                    <button
-                      onClick={() => setShowGoalModal(true)}
-                      className="text-[9px] font-extrabold text-violet bg-violet/10 px-2.5 py-1 rounded-xl active:scale-95 transition"
-                    >
-                      + Target Baru
-                    </button>
+            <section className="px-5 mb-5 animate-slide-up stagger-2">
+              <div className="bg-surface dark:bg-zinc-900 border border-separator/30 dark:border-zinc-800 rounded-3xl p-4 shadow-card">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🎯</span>
+                    <h3 className="font-extrabold text-ink dark:text-zinc-100 text-[12px]">Target Tabungan</h3>
                   </div>
+                  <button
+                    onClick={() => setShowGoalModal(true)}
+                    className="text-[9px] font-extrabold text-violet bg-violet/10 px-2.5 py-1 rounded-xl active:scale-95 transition"
+                  >
+                    + Target Baru
+                  </button>
+                </div>
 
+                {goals.length === 0 ? (
+                  <div 
+                    onClick={() => setShowGoalModal(true)}
+                    className="p-3.5 rounded-2xl bg-bg/50 dark:bg-zinc-800/40 border border-dashed border-separator/50 dark:border-zinc-700/60 text-center cursor-pointer hover:border-violet transition"
+                  >
+                    <p className="text-[11px] font-bold text-ink dark:text-zinc-200">Belum Ada Target Tabungan</p>
+                    <p className="text-[9px] text-secondary dark:text-zinc-400 mt-0.5">Tap di sini untuk membuat impian tabungan baru.</p>
+                  </div>
+                ) : (
                   <div className="space-y-3">
                     {goals.map((g) => {
                       const pct = Math.min(Math.round(((g.current_amount || 0) / g.target_amount) * 100), 100);
@@ -1264,9 +1283,9 @@ export default function MobileDashboard({
                       );
                     })}
                   </div>
-                </div>
-              </section>
-            )}
+                )}
+              </div>
+            </section>
 
             {/* Unified Calendar & Agenda list (Google Calendar Style) */}
             <section className="px-5 mb-5 animate-slide-up stagger-2" style={{ opacity: 0, animationFillMode: "forwards" }}>
@@ -2946,6 +2965,41 @@ export default function MobileDashboard({
                 )}
               </div>
 
+              {/* Quick Action Fitur Keuangan */}
+              <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
+                <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Kelola Fitur Keuangan</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowSettingsModal(false); setShowWalletModal(true); }}
+                    className="p-2.5 bg-surface dark:bg-zinc-800 rounded-xl border border-separator/30 text-left font-bold text-xs flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <span>💳</span> Dompet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSettingsModal(false); setShowTransferModal(true); }}
+                    className="p-2.5 bg-surface dark:bg-zinc-800 rounded-xl border border-separator/30 text-left font-bold text-xs flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <span>⇄</span> Transfer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSettingsModal(false); setShowDebtModal(true); }}
+                    className="p-2.5 bg-surface dark:bg-zinc-800 rounded-xl border border-separator/30 text-left font-bold text-xs flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <span>🤝</span> Hutang
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSettingsModal(false); setShowGoalModal(true); }}
+                    className="p-2.5 bg-surface dark:bg-zinc-800 rounded-xl border border-separator/30 text-left font-bold text-xs flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <span>🎯</span> Target
+                  </button>
+                </div>
+              </div>
+
               {/* Telegram Integration */}
               <div className="p-3.5 bg-[#F2F2F7] dark:bg-zinc-900 rounded-2xl border border-separator/20 dark:border-zinc-800 space-y-2">
                 <span className="text-[10px] font-bold text-secondary dark:text-zinc-400 uppercase tracking-wider block">Integrasi Telegram</span>
@@ -3266,6 +3320,376 @@ export default function MobileDashboard({
               >
                 Batal
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal 7: Tambah Dompet Baru */}
+      {showWalletModal && (
+        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-sm uppercase tracking-wider">Tambah Dompet / Rekening</h3>
+              <button onClick={() => setShowWalletModal(false)} className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition">
+                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Nama Dompet</label>
+                <input
+                  type="text"
+                  placeholder="e.g. BCA Utama, GoPay, Cash"
+                  value={walletForm.name}
+                  onChange={(e) => setWalletForm({ ...walletForm, name: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Emoji Icon</label>
+                  <input
+                    type="text"
+                    placeholder="💳"
+                    value={walletForm.emoji}
+                    onChange={(e) => setWalletForm({ ...walletForm, emoji: e.target.value })}
+                    className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100 text-center"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Tipe</label>
+                  <select
+                    value={walletForm.type}
+                    onChange={(e) => setWalletForm({ ...walletForm, type: e.target.value })}
+                    className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                  >
+                    <option value="debit">Debit / Bank</option>
+                    <option value="ewallet">E-Wallet</option>
+                    <option value="cash">Cash / Tunai</option>
+                    <option value="credit">Kartu Kredit</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Saldo Awal (Rp)</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={walletForm.initial_balance}
+                  onChange={(e) => setWalletForm({ ...walletForm, initial_balance: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div className="pt-2 flex gap-2">
+                <button type="button" onClick={() => setShowWalletModal(false)} className="flex-1 py-3 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary font-bold text-xs uppercase">Batal</button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!walletForm.name.trim()) return;
+                    try {
+                      const res = await fetch("/api/wallets", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(walletForm),
+                      });
+                      const d = await res.json();
+                      if (d.wallet) setWallets((prev) => [...prev, d.wallet]);
+                      setShowWalletModal(false);
+                      setWalletForm({ name: "", emoji: "💳", color: "#AF52DE", type: "debit", initial_balance: "" });
+                    } catch (err) { console.error(err); }
+                  }}
+                  className="flex-1 py-3 rounded-2xl bg-violet text-white font-bold text-xs uppercase"
+                >
+                  Simpan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 8: Transfer Antar Wallet */}
+      {showTransferModal && (
+        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-sm uppercase tracking-wider">Transfer Antar Dompet</h3>
+              <button onClick={() => setShowTransferModal(false)} className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition">
+                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Dari Dompet</label>
+                <select
+                  value={transferForm.from_wallet_id}
+                  onChange={(e) => setTransferForm({ ...transferForm, from_wallet_id: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                >
+                  <option value="">Pilih Sumber</option>
+                  {wallets.map((w) => (<option key={w.id} value={w.id}>{w.emoji} {w.name}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Ke Dompet Tujuan</label>
+                <select
+                  value={transferForm.to_wallet_id}
+                  onChange={(e) => setTransferForm({ ...transferForm, to_wallet_id: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                >
+                  <option value="">Pilih Tujuan</option>
+                  {wallets.map((w) => (<option key={w.id} value={w.id}>{w.emoji} {w.name}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Nominal Transfer (Rp)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 100000"
+                  value={transferForm.amount}
+                  onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Catatan</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Top up GoPay dari BCA"
+                  value={transferForm.note}
+                  onChange={(e) => setTransferForm({ ...transferForm, note: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div className="pt-2 flex gap-2">
+                <button type="button" onClick={() => setShowTransferModal(false)} className="flex-1 py-3 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary font-bold text-xs uppercase">Batal</button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!transferForm.from_wallet_id || !transferForm.to_wallet_id || !transferForm.amount) return;
+                    try {
+                      await fetch("/api/wallets", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "transfer", ...transferForm }),
+                      });
+                      setShowTransferModal(false);
+                      setTransferForm({ from_wallet_id: "", to_wallet_id: "", amount: "", note: "" });
+                      fetch("/api/wallets").then(r => r.json()).then(d => { if (d.wallets) setWallets(d.wallets); });
+                    } catch (err) { console.error(err); }
+                  }}
+                  className="flex-1 py-3 rounded-2xl bg-violet text-white font-bold text-xs uppercase"
+                >
+                  Transfer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 9: Catat Hutang / Piutang */}
+      {showDebtModal && (
+        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-sm uppercase tracking-wider">Catat Hutang / Piutang</h3>
+              <button onClick={() => setShowDebtModal(false)} className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition">
+                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="flex bg-[#F2F2F7] dark:bg-zinc-900 p-1 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setDebtForm({ ...debtForm, direction: "owed_to_me" })}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase transition ${debtForm.direction === "owed_to_me" ? "bg-green text-white" : "text-secondary"}`}
+                >
+                  Piutang (Teman Utang)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDebtForm({ ...debtForm, direction: "i_owe" })}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase transition ${debtForm.direction === "i_owe" ? "bg-red text-white" : "text-secondary"}`}
+                >
+                  Utang Saya
+                </button>
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Nama Orang</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Budi, Rian"
+                  value={debtForm.person_name}
+                  onChange={(e) => setDebtForm({ ...debtForm, person_name: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Nominal (Rp)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 50000"
+                  value={debtForm.amount}
+                  onChange={(e) => setDebtForm({ ...debtForm, amount: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Catatan</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Bayar makan siang"
+                  value={debtForm.note}
+                  onChange={(e) => setDebtForm({ ...debtForm, note: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div className="pt-2 flex gap-2">
+                <button type="button" onClick={() => setShowDebtModal(false)} className="flex-1 py-3 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary font-bold text-xs uppercase">Batal</button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!debtForm.person_name.trim() || !debtForm.amount) return;
+                    try {
+                      const res = await fetch("/api/debts", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(debtForm),
+                      });
+                      const d = await res.json();
+                      if (d.debt) setDebts((prev) => [d.debt, ...prev]);
+                      setShowDebtModal(false);
+                      setDebtForm({ direction: "owed_to_me", person_name: "", amount: "", note: "", due_date: "" });
+                    } catch (err) { console.error(err); }
+                  }}
+                  className="flex-1 py-3 rounded-2xl bg-violet text-white font-bold text-xs uppercase"
+                >
+                  Simpan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 10: Tambah Target Tabungan (Savings Goal) */}
+      {showGoalModal && (
+        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-sm uppercase tracking-wider">Target Tabungan Baru</h3>
+              <button onClick={() => setShowGoalModal(false)} className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition">
+                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Judul Target</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Beli Laptop Baru, Liburan"
+                  value={goalForm.title}
+                  onChange={(e) => setGoalForm({ ...goalForm, title: e.target.value })}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Target Dana (Rp)</label>
+                  <input
+                    type="number"
+                    placeholder="8000000"
+                    value={goalForm.target_amount}
+                    onChange={(e) => setGoalForm({ ...goalForm, target_amount: e.target.value })}
+                    className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Emoji Icon</label>
+                  <input
+                    type="text"
+                    placeholder="🎯"
+                    value={goalForm.emoji}
+                    onChange={(e) => setGoalForm({ ...goalForm, emoji: e.target.value })}
+                    className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100 text-center"
+                  />
+                </div>
+              </div>
+              <div className="pt-2 flex gap-2">
+                <button type="button" onClick={() => setShowGoalModal(false)} className="flex-1 py-3 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary font-bold text-xs uppercase">Batal</button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!goalForm.title.trim() || !goalForm.target_amount) return;
+                    try {
+                      const res = await fetch("/api/goals", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(goalForm),
+                      });
+                      const d = await res.json();
+                      if (d.goal) setGoals((prev) => [d.goal, ...prev]);
+                      setShowGoalModal(false);
+                      setGoalForm({ title: "", target_amount: "", target_date: "", emoji: "🎯", color: "#AF52DE" });
+                    } catch (err) { console.error(err); }
+                  }}
+                  className="flex-1 py-3 rounded-2xl bg-violet text-white font-bold text-xs uppercase"
+                >
+                  Simpan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 11: Setor Ke Goal Tabungan */}
+      {showGoalDepositModal && selectedGoalForDeposit && (
+        <div className="fixed inset-0 bg-ink/40 dark:bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-5 animate-fade-in">
+          <div className="bg-surface dark:bg-[#1C1C1E] border border-separator/40 dark:border-zinc-800/80 rounded-[32px] p-6 w-full max-w-xs shadow-float animate-bounce-in text-ink dark:text-zinc-100">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-sm uppercase tracking-wider">Setor ke {selectedGoalForDeposit.title}</h3>
+              <button onClick={() => setShowGoalDepositModal(false)} className="w-8 h-8 rounded-full bg-[#F2F2F7] dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition">
+                <X className="w-4 h-4 text-ink dark:text-zinc-300" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] font-bold text-secondary uppercase tracking-wider block mb-1">Nominal Setoran (Rp)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 250000"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="w-full bg-[#F2F2F7] dark:bg-zinc-900 border-0 rounded-2xl p-3 text-xs font-bold text-ink dark:text-zinc-100"
+                />
+              </div>
+              <div className="pt-2 flex gap-2">
+                <button type="button" onClick={() => setShowGoalDepositModal(false)} className="flex-1 py-3 rounded-2xl bg-[#F2F2F7] dark:bg-zinc-800 text-secondary font-bold text-xs uppercase">Batal</button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!depositAmount || Number(depositAmount) <= 0) return;
+                    try {
+                      const res = await fetch("/api/goals", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "deposit", goal_id: selectedGoalForDeposit.id, amount: Number(depositAmount) }),
+                      });
+                      const d = await res.json();
+                      if (d.goal) {
+                        setGoals((prev) => prev.map((g) => (g.id === d.goal.id ? d.goal : g)));
+                      }
+                      setShowGoalDepositModal(false);
+                      setDepositAmount("");
+                    } catch (err) { console.error(err); }
+                  }}
+                  className="flex-1 py-3 rounded-2xl bg-violet text-white font-bold text-xs uppercase"
+                >
+                  Setor
+                </button>
+              </div>
             </div>
           </div>
         </div>
